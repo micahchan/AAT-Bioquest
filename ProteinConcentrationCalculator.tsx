@@ -9,6 +9,11 @@ const ProteinConcentrationCalculator = (props: any) => {
   const [absorbance, _absorbance] = useState(0);
   const [dilutionFactor, _dilutionFactor] = useState(1);
   const [pathlength, _pathlength] = useState(1);
+  const [resultsMW, _resultsMW] = useState(150000);
+  const [resultsEC, _resultsEC] = useState(210000);
+  const [resultsABS, _resultsABS] = useState(0);
+  const [resultsDF, _resultsDF] = useState(0);
+  const [resultsPL, _resultsPL] = useState(0);
   const [results, _results] = useState<Object | null>(null);
 
   const calculateResult = () => {
@@ -17,6 +22,7 @@ const ProteinConcentrationCalculator = (props: any) => {
   }
 
   const calculatePeptideValues = () => {
+    if (selectProtein !== "custom" || sequence === "" || sequence === undefined || sequence === null) { return; }
     const aa_3: string[] = new Array('ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLU', 'GLN', 'GLY', 'HIS', 'ILE', 'LEU', 'LYS', 'MET', 'PHE', 'PRO', 'SER', 'THR', 'TRP', 'TYR', 'VAL');
     const aa_1: string[] = new Array('A', 'R', 'N', 'D', 'C', 'E', 'Q', 'G', 'H', 'I', 'L', 'K', 'M', 'F', 'P', 'S', 'T', 'W', 'Y', 'V');
     const aaValuesObj: any = {
@@ -85,7 +91,7 @@ const ProteinConcentrationCalculator = (props: any) => {
 
   useEffect(() => {
     calculatePeptideValues();
-  }, [sequence])
+  }, [sequence, selectProtein])
 
   const handleKeyPress = (event: any) => {
     const string = event.target.value.replaceAll(/[^a-zA-z]/g, "");
@@ -119,98 +125,247 @@ const ProteinConcentrationCalculator = (props: any) => {
   const handleCalculateButtonClick = (event: any) => {
     const value = RoundSigFig(calculateResult(), 2);
     _results(value);
+    _resultsABS(absorbance);
+    _resultsDF(dilutionFactor);
+    _resultsEC(ec);
+    _resultsMW(mw);
+    _resultsPL(pathlength);
   }
 
   return (
     <>
-      <table className="inputTable" style={{ width: "100%", display: "block" }}>
-        <tbody>
-          <tr>
-            <td>Protein</td>
-            <td><select className="selectProtein" onChange={handleDropDownMenu}>
-              <option value="IgG" data-ex={280} data-ec={210000} data-mw={150000} data-ctype="equation">IgG - Immunoglobulin G</option>
-              <option value="BSA" data-ex={280} data-ec={43824} data-mw={66463} data-ctype="equation">BSA - Bovine serum albumin</option>
-              <option value="PE" data-ex={565} data-ec={1960000} data-mw={240000} data-ctype="equation">PE - Phycoerythrin</option>
-              <option value="APC" data-ex={650} data-ec={700000} data-mw={105000} data-ctype="equation">APC - Allophycocyanin</option>
-              <option value="Streptavidin" data-ex={280} data-ec={176000} data-mw={55000} data-ctype="equation">Streptavidin</option>
-              <option className="customOption" value="custom" data-ex={280} data-ec={-99} data-mw={-99} data-ctype="equation">Custom sequence</option>
-            </select></td>
-          </tr>
-          {/*Custom protein sequence layout only appears if option is chosen from drop down menu */}
-          {(selectProtein === "custom") ?
-            <>
-              < tr className="customSeq" style={{ display: "table-row" }}>
-                <td>Sequence</td>
-                <td><textarea
-                  className="sequenceArea"
-                  style={{ width: "100%", minHeight: "50px", resize: "none" }}
-                  placeholder="example: AlaLysVal or AKV or UniProt ID (eg. P02769 for BSA)"
-                  value={sequence}
-                  onChange={handleKeyPress}
-                >
-                </textarea></td>
-              </tr>
-              <tr className="customSeq" style={{ display: "table-row" }}>
-                <td>Name</td>
-                <td className="pName">Not identified</td>
-              </tr>
-              <tr className="customSeq" style={{ display: "table-row" }}>
-                <td>MW</td>
-                <td className="pMW">
-                  {(mw > 0) ? <> {mw} DA </> : "Waiting for sequence"}</td>
-              </tr>
-              <tr className="customSeq" style={{ display: "table-row" }}>
-                <td>Extinction coefficient</td>
-                <td className="pEC">
-                  {(ec > 0) ? <> {ec} M<sup>-1</sup> cm<sup>-1</sup></> : "Waiting for sequence"}</td>
-              </tr>
-            </>
-            : ""}
-          <tr>
-            <td>Absorbance at λ<sub>max</sub></td>
-            <td><input
-              type="number"
-              className="maxAbsorbance"
-              onChange={handleInputAbsorbance}
-              placeholder="at 280 nm"
-            />
-            </td>
-          </tr>
-          <tr>
-            <td>Dilution factor (optional)</td>
-            <td><input
-              type="number"
-              className="dilutionFactor"
-              onChange={handleInputDilutionFactor}
-              placeholder=""
-            />
-            </td>
-          </tr>
-          <tr>
-            <td>Pathlength</td>
-            <td><input
-              type="number"
-              className="pathlength"
-              onChange={handleInputPathlength}
-              placeholder="standard is 1 cm"
-            /> cm
-            </td>
-          </tr>
-          <tr>
-            <input
-              type="button"
-              className="calculateButton"
-              onClick={handleCalculateButtonClick}
-              value="Calculate"
-            />
-          </tr>
+      <div
+        className="pageContent"
+        style={{
+          fontSize: "14px",
+          font: "sans-serif",
+        }}>
+        <h1>Protein Concentration Calculator</h1>
+        <div>
+          The concentration of Protein in solution can be determined by substituting the molecular weight, extinction coefficient and λ<sub>max</sub> into a derived form of the Beer-Lambert Law. A substance's λ<sub>max</sub> is the wavelength at which it experiences the strongest absorbance. For Protein, this wavelength is 280 nm.
+          <br /><br />
+          The absorbance at λ<sub>max</sub> can be measured using a spectrophotometer. There are some important things to keep in mind when measuring 280 absorbance:
+          <br /><br />
+          <ol>
+            <li>The Protein should be well-dissolved in solution. Protein precipitation will cause inaccuracies in concentration calculations.</li>
+            <br />
+            <li>The absorbance reading should not exceed the maximum detection limit of the instrumentation. This can be identified by a plateau in the absorbance spectrum. If the absorbance spectrum plateaus, dilute the sample and try again.</li>
+            <br />
+            <li>This calculator assumes a 1 cm pathlength for instrumentation. Standard cuvettes for spectrophotometers are typically 1 cm. If a different pathlength is used, value should be corrected during data entry.</li>
+          </ol>
+          <br /><br />
+        </div>
+        <div className="twoColumn">
+          <div className="twoColumnLeft"
+            style={{
+              display: "inline-block",
+              width: "50%",
+              verticalAlign: "top"
+            }}>
+            <h3> How to use this tool</h3>
+            <div>
+              <ol>
+                <li>Select the protein. Or select <span style={{ color: "red", fontWeight: "bold" }}>"custom sequence"</span> to enter the amino acid sequence or the UniProt ID.</li>
+                <br />
+                <li>Enter the absorbance at λ<sub>max</sub>. For a typical protein, λ<sub>max</sub> is 280 nm. However, this value may change based on the protein. Please use the maximum absorbance as indicated by the spectrophotometric reading (ie. highest peak).</li>
+                <br />
+                <li>If the absorbance is obtained with a diluted sample, enter the dilution factor in order to determine the concentration of the original sample.</li>
+                <br />
+                <li>If pathlength differs from 1 cm, enter corrected value into pathlength textbox.</li>
+                <br />
+                <li>Press calculate to display the concentration.</li>
+              </ol>
+            </div>
+          </div>
+          <div className="twoColumnRight"
+            style={{
+              display: "inline-block",
+              width: "50%",
+              verticalAlign: "top",
+              whiteSpace: "nowrap"
+            }}>
+            <br />
+            <table className="inputTable"
+              style={{
+                display: "inline-block",
+                marginLeft: "10px"
+              }}
+              cellPadding="5px">
+              <tbody>
+                <tr>
+                  <td>Protein</td>
+                  <td><select onChange={handleDropDownMenu}>
+                    <option value="IgG" data-ex={280} data-ec={210000} data-mw={150000} data-ctype="equation">IgG - Immunoglobulin G</option>
+                    <option value="BSA" data-ex={280} data-ec={43824} data-mw={66463} data-ctype="equation">BSA - Bovine serum albumin</option>
+                    <option value="PE" data-ex={565} data-ec={1960000} data-mw={240000} data-ctype="equation">PE - Phycoerythrin</option>
+                    <option value="APC" data-ex={650} data-ec={700000} data-mw={105000} data-ctype="equation">APC - Allophycocyanin</option>
+                    <option value="Streptavidin" data-ex={280} data-ec={176000} data-mw={55000} data-ctype="equation">Streptavidin</option>
+                    <option className="customOption" value="custom" data-ex={280} data-ec={-99} data-mw={-99} data-ctype="equation">Custom sequence</option>
+                  </select></td>
+                </tr>
+                {/*Custom protein sequence layout only appears if option is chosen from drop down menu */}
+                {(selectProtein === "custom") ?
+                  <>
+                    < tr>
+                      <td>Sequence</td>
+                      <td><textarea
+                        className="sequenceArea"
+                        style={{ width: "100%", minHeight: "50px", resize: "none" }}
+                        placeholder="example: AlaLysVal or AKV or UniProt ID (eg. P02769 for BSA)"
+                        value={sequence}
+                        onChange={handleKeyPress}
+                      >
+                      </textarea></td>
+                    </tr>
+                    <tr>
+                      <td>Name</td>
+                      <td>Not identified</td>
+                    </tr>
+                    <tr>
+                      <td>MW</td>
+                      <td>
+                        {(mw > 0) ? <> {RoundSigFig((mw / 1000), 2)} kDA </> : "Waiting for sequence"}</td>
+                    </tr>
+                    <tr>
+                      <td>Extinction coefficient</td>
+                      <td>
+                        {(ec > 0) ? <> {ec} M<sup>-1</sup> cm<sup>-1</sup></> : "Waiting for sequence"}</td>
+                    </tr>
+                  </>
+                  : ""}
+                <tr>
+                  <td>Absorbance at λ<sub>max</sub></td>
+                  <td><input
+                    type="number"
+                    onChange={handleInputAbsorbance}
+                    placeholder="at 280 nm"
+                  />
+                  </td>
+                </tr>
+                <tr>
+                  <td>Dilution factor (optional)</td>
+                  <td><input
+                    type="number"
+                    onChange={handleInputDilutionFactor}
+                    placeholder=""
+                  />
+                  </td>
+                </tr>
+                <tr>
+                  <td>Pathlength</td>
+                  <td><input
+                    type="number"
+                    onChange={handleInputPathlength}
+                    placeholder="standard is 1 cm"
+                  /> cm
+                  </td>
+                </tr>
+                <br /><br />
+                <tr>
+                  <input
+                    type="button"
+                    className="calculateButton"
+                    onClick={handleCalculateButtonClick}
+                    value="Calculate"
+                    style={{
+                      backgroundColor: "#FFC23A",
+                      border: "solid 1px #815900",
+                      padding: "5px 10px"
+                    }}
+                  />
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div className="displayResults">
           {(results === null) ? "" :
             <>
-              <br />This is the result: {results}
-            </>
-          }
-        </tbody>
-      </table>
+              <h3>Results</h3>
+              <table
+                cellPadding="5px"
+                style={{
+                  marginLeft: "-5px",
+                  textAlign: "center",
+                  whiteSpace: "nowrap"
+                }}
+                className="resultsTable">
+                <tbody>
+                  <tr>
+                    <td>Concentration</td>
+                    <td>=</td>
+                    <td>
+                      <div style={{
+                        paddingBottom: "3px",
+                        marginBottom: "3px",
+                        borderBottom: "solid 1px black"
+                      }}>Absorbance at λ<sub>max</sub></div>
+                      <div>Extinction coefficient&nbsp;&nbsp;&nbsp;×&nbsp;&nbsp;&nbsp;Pathlength</div>
+                    </td>
+                    <td>×</td>
+                    <td>Molecular weight</td>
+                    <td>×</td>
+                    <td>Dilution Factor</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td>=</td>
+                    <td>
+                      <div style={{
+                        paddingBottom: "3px",
+                        marginBottom: "3px",
+                        borderBottom: "solid 1px black"
+                      }}>{resultsABS}</div>
+                      <div>{resultsEC} M<sup>-1</sup> cm<sup>-1</sup>&nbsp;&nbsp;&nbsp;×&nbsp;&nbsp;&nbsp;{resultsPL} cm</div>
+                    </td>
+                    <td>×</td>
+                    <td>{(selectProtein === "custom") ? (RoundSigFig((resultsMW / 1000), 2)) * 1000 : resultsMW} g/mol</td>
+                    <td>×</td>
+                    <td>{resultsDF}</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td>=</td>
+                    <td style={{ color: "blue", textAlign: "left", fontWeight: "bold" }}>{results} mg/mL</td>
+                  </tr>
+                </tbody>
+              </table>
+            </>}
+        </div>
+        <div
+          className="References"
+          style={{ display: "inline-block" }}>
+          <br />
+          <hr />
+          <h3>References</h3>
+          <table style={{ display: "inline-block" }}>
+            <tbody>
+              <tr>
+                <td>This online tool may be cited as follows</td>
+              </tr>
+              <tr>
+                <td><span style={{ fontWeight: "bold" }}>MLA</span>&nbsp;&nbsp;"Quest Calculate&trade; Protein Concentration Calculator." <span style={{ fontStyle: "italic" }}>AAT Bioquest, Inc</span>, 30 Nov. 2021, https://www.aatbio.com/tools/calculate-protein-concentration.</td>
+              </tr>
+              <tr>
+                <td><span style={{ fontWeight: "bold" }}>APA</span>&nbsp;&nbsp;&nbsp;AAT Bioquest, Inc. (2021, November 30). <span style={{ fontStyle: "italic" }}>Quest Calculate™ Protein Concentration Calculator."</span>. Retrieved from https://www.aatbio.com/tools/calculate-protein-concentration</td>
+              </tr>
+              <tr>
+                <td><br />This online tool has been cited in the following publications</td>
+              </tr>
+              <tr>
+                <div>
+                  <a href="https://bsppjournals.onlinelibrary.wiley.com/doi/full/10.1111/mpp.13045" target="_blank" style={{ color: "blue", textDecoration: "none" }}>A haustorial-expressed lytic polysaccharide monooxygenase from the cucurbit powdery mildew pathogen Podosphaera xanthii contributes to the suppression of chitin-triggered immunity</a>
+                  <br />
+                  <span><span style={{ fontWeight: "bold" }}>Authors</span>: &Aacute;lvaro Polonio, Dolores Fern&aacute;ndez-Ortu&ntilde;o, Antonio de Vicente, Alejandro P&eacute;rez-Garc&iacute;a</span>
+                  <br />
+                  <span><span style={{ fontWeight: "bold" }}>Journal</span>: : Molecular plant pathology (2021)</span>
+                </div>
+              </tr>
+              <br />
+            </tbody>
+          </table>
+        </div>
+      </div>
     </>
   )
 }
