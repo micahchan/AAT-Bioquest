@@ -8,13 +8,13 @@ const ProteinConcentrationCalculator = (props: any) => {
   const [ec, _ec] = useState(210000);
   const [absorbance, _absorbance] = useState(0);
   const [dilutionFactor, _dilutionFactor] = useState(1);
-  const [pathlength, _pathlength] = useState(1);
+  const [pathlength, _pathlength] = useState(0);
   const [resultsMW, _resultsMW] = useState(150000);
   const [resultsEC, _resultsEC] = useState(210000);
   const [resultsABS, _resultsABS] = useState(0);
-  const [resultsDF, _resultsDF] = useState(0);
+  const [resultsDF, _resultsDF] = useState(1);
   const [resultsPL, _resultsPL] = useState(0);
-  const [results, _results] = useState<Object | null>(null);
+  const [results, _results] = useState<number | string | null>(null);
 
   const calculateResult = () => {
     const value = absorbance * mw * dilutionFactor / (ec * pathlength);
@@ -23,8 +23,8 @@ const ProteinConcentrationCalculator = (props: any) => {
 
   const calculatePeptideValues = () => {
     if (selectProtein !== "custom" || sequence === "" || sequence === undefined || sequence === null) { return; }
-    const aa_3: string[] = new Array('ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLU', 'GLN', 'GLY', 'HIS', 'ILE', 'LEU', 'LYS', 'MET', 'PHE', 'PRO', 'SER', 'THR', 'TRP', 'TYR', 'VAL');
-    const aa_1: string[] = new Array('A', 'R', 'N', 'D', 'C', 'E', 'Q', 'G', 'H', 'I', 'L', 'K', 'M', 'F', 'P', 'S', 'T', 'W', 'Y', 'V');
+    const aa_3: string[] = ['ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLU', 'GLN', 'GLY', 'HIS', 'ILE', 'LEU', 'LYS', 'MET', 'PHE', 'PRO', 'SER', 'THR', 'TRP', 'TYR', 'VAL'];
+    const aa_1: string[] = ['A', 'R', 'N', 'D', 'C', 'E', 'Q', 'G', 'H', 'I', 'L', 'K', 'M', 'F', 'P', 'S', 'T', 'W', 'Y', 'V'];
     const aaValuesObj: any = {
       'ALA': 89.094, 'A': 89.094,
       'ARG': 174.203, 'R': 174.203,
@@ -90,6 +90,10 @@ const ProteinConcentrationCalculator = (props: any) => {
   }
 
   useEffect(() => {
+    if (selectProtein === "custom") {
+      _mw(-99);
+      _ec(-99);
+    }
     calculatePeptideValues();
   }, [sequence, selectProtein])
 
@@ -108,28 +112,42 @@ const ProteinConcentrationCalculator = (props: any) => {
   }
 
   const handleInputAbsorbance = (event: any) => {
-    const value = event.target.value;
+    let value = event.target.value;
+    if (value === "") { value = 0; }
     _absorbance(value);
   }
 
   const handleInputDilutionFactor = (event: any) => {
-    const value = event.target.value;
+    let value = event.target.value;
+    if (value === "") { value = 1; }
     _dilutionFactor(value);
   }
 
   const handleInputPathlength = (event: any) => {
-    const value = event.target.value;
+    let value = event.target.value;
+    if (value === "") { value = 0; }
     _pathlength(value);
   }
 
+  const handleMouseClick = (event: any) => {
+    const state = "custom";
+    _selectProtein(state);
+  }
+
   const handleCalculateButtonClick = (event: any) => {
-    const value = RoundSigFig(calculateResult(), 2);
-    _results(value);
     _resultsABS(absorbance);
     _resultsDF(dilutionFactor);
     _resultsEC(ec);
     _resultsMW(mw);
     _resultsPL(pathlength);
+    const value = RoundSigFig(calculateResult(), 3);
+    //_results("missing") returns missing input error
+    if (absorbance === 0 || pathlength === 0) { _results("missing") }
+    //_results("invalid") returns invalid input error
+    else if (absorbance < 0 || pathlength < 0 || dilutionFactor < 0) { _results("invalid") }
+    //_results("error") returns general error, unable to calculate
+    else if (isNaN(value) === true || value === Infinity) { _results("error") }
+    else { _results(value) }
   }
 
   return (
@@ -165,7 +183,7 @@ const ProteinConcentrationCalculator = (props: any) => {
             <h3> How to use this tool</h3>
             <div>
               <ol>
-                <li>Select the protein. Or select <span style={{ color: "red", fontWeight: "bold" }}>"custom sequence"</span> to enter the amino acid sequence or the UniProt ID.</li>
+                <li>Select the protein. Or select <span style={{ color: "red", fontWeight: "bold", cursor: "pointer" }} onClick={handleMouseClick}>"custom sequence"</span> to enter the amino acid sequence or the UniProt ID.</li>
                 <br />
                 <li>Enter the absorbance at λ<sub>max</sub>. For a typical protein, λ<sub>max</sub> is 280 nm. However, this value may change based on the protein. Please use the maximum absorbance as indicated by the spectrophotometric reading (ie. highest peak).</li>
                 <br />
@@ -194,7 +212,7 @@ const ProteinConcentrationCalculator = (props: any) => {
               <tbody>
                 <tr>
                   <td>Protein</td>
-                  <td><select onChange={handleDropDownMenu}>
+                  <td><select className="proteinDropMenu" value={selectProtein} onChange={handleDropDownMenu}>
                     <option value="IgG" data-ex={280} data-ec={210000} data-mw={150000} data-ctype="equation">IgG - Immunoglobulin G</option>
                     <option value="BSA" data-ex={280} data-ec={43824} data-mw={66463} data-ctype="equation">BSA - Bovine serum albumin</option>
                     <option value="PE" data-ex={565} data-ec={1960000} data-mw={240000} data-ctype="equation">PE - Phycoerythrin</option>
@@ -326,8 +344,17 @@ const ProteinConcentrationCalculator = (props: any) => {
                   <tr>
                     <td></td>
                     <td>=</td>
-                    <td style={{ color: "blue", textAlign: "left", fontWeight: "bold" }}>{results} mg/mL</td>
+                    <td style={{ color: "blue", textAlign: "left", fontWeight: "bold" }}>
+                      {(results === "missing") ? "Error: missing input value(s)" :
+                        (results === "invalid") ? "Error: invalid input value(s)" :
+                          (results === "error") ? "Error: could not calculate concentration" : results + " mg/mL"}
+                    </td>
                   </tr>
+                  {/*<br />Test specs<br />The Absorbance: {absorbance}<br />The pathlength: {pathlength}<br />The EC: {ec}<br />The MW: {mw}<br />The DF: {dilutionFactor}<br />The result is: {results}<br />
+                  {console.log("The Absorbance is:" + absorbance)}
+                  {console.log("The pathlength is:" + pathlength)}
+                  {console.log("The dilutionFactor is:" + dilutionFactor)}
+                    {console.log("The result is:" + results)}*/}
                 </tbody>
               </table>
             </>}
@@ -338,23 +365,23 @@ const ProteinConcentrationCalculator = (props: any) => {
           <br />
           <hr />
           <h3>References</h3>
-          <table style={{ display: "inline-block" }}>
+          <table style={{ display: "inline-block" }} >
             <tbody>
+              <tr>This online tool may be cited as follows</tr>
               <tr>
-                <td>This online tool may be cited as follows</td>
+                <td style={{ fontWeight: "bold" }}>MLA</td>
+                <td>"Quest Calculate&trade; Protein Concentration Calculator." <span style={{ fontStyle: "italic" }}>AAT Bioquest, Inc</span>, 30 Nov. 2021, https://www.aatbio.com/tools/calculate-protein-concentration.</td>
               </tr>
               <tr>
-                <td><span style={{ fontWeight: "bold" }}>MLA</span>&nbsp;&nbsp;"Quest Calculate&trade; Protein Concentration Calculator." <span style={{ fontStyle: "italic" }}>AAT Bioquest, Inc</span>, 30 Nov. 2021, https://www.aatbio.com/tools/calculate-protein-concentration.</td>
-              </tr>
-              <tr>
-                <td><span style={{ fontWeight: "bold" }}>APA</span>&nbsp;&nbsp;&nbsp;AAT Bioquest, Inc. (2021, November 30). <span style={{ fontStyle: "italic" }}>Quest Calculate™ Protein Concentration Calculator."</span>. Retrieved from https://www.aatbio.com/tools/calculate-protein-concentration</td>
+                <td style={{ fontWeight: "bold" }}>APA</td>
+                <td>AAT Bioquest, Inc. (2021, November 30). <span style={{ fontStyle: "italic" }}>Quest Calculate™ Protein Concentration Calculator."</span>. Retrieved from https://www.aatbio.com/tools/calculate-protein-concentration</td>
               </tr>
               <tr>
                 <td><br />This online tool has been cited in the following publications</td>
               </tr>
               <tr>
                 <div>
-                  <a href="https://bsppjournals.onlinelibrary.wiley.com/doi/full/10.1111/mpp.13045" target="_blank" style={{ color: "blue", textDecoration: "none" }}>A haustorial-expressed lytic polysaccharide monooxygenase from the cucurbit powdery mildew pathogen Podosphaera xanthii contributes to the suppression of chitin-triggered immunity</a>
+                  <a href="https://bsppjournals.onlinelibrary.wiley.com/doi/full/10.1111/mpp.13045" target="_blank" rel="noopener noreferrer" style={{ color: "blue", textDecoration: "none" }}>A haustorial-expressed lytic polysaccharide monooxygenase from the cucurbit powdery mildew pathogen Podosphaera xanthii contributes to the suppression of chitin-triggered immunity</a>
                   <br />
                   <span><span style={{ fontWeight: "bold" }}>Authors</span>: &Aacute;lvaro Polonio, Dolores Fern&aacute;ndez-Ortu&ntilde;o, Antonio de Vicente, Alejandro P&eacute;rez-Garc&iacute;a</span>
                   <br />
