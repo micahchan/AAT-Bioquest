@@ -13,9 +13,8 @@ const ProteinConcentrationCalculator = (props: any) => {
   const [resultsMW, _resultsMW] = useState(0);
   const [resultsEC, _resultsEC] = useState(0);
   const [resultsABS, _resultsABS] = useState(0);
-  const [resultsDF, _resultsDF] = useState(1);
+  const [resultsDF, _resultsDF] = useState(0);
   const [resultsPL, _resultsPL] = useState(0);
-  const [resultsValidSeq, _resultsValidSeq] = useState<boolean | null>(null);
   const [results, _results] = useState<number | string | null>(null);
 
   useEffect(() => {
@@ -52,6 +51,7 @@ const ProteinConcentrationCalculator = (props: any) => {
       const splitCheck = formattedSeq.split("");
       const splitCheckThree = formattedSeq.match(/.{1,3}/g) || [];
 
+      //checks to see if each part of the sequence fits within a value in the array of amino acids
       if (splitCheck.length % 3 === 0 && (splitCheckThree.every(r => aa_3.indexOf(r) >= 0) === true)) {
         aaType = 't';
       }
@@ -151,22 +151,25 @@ const ProteinConcentrationCalculator = (props: any) => {
     _resultsEC(ec);
     _resultsMW(mw);
     _resultsPL(pathlength);
-    _resultsValidSeq(validSeq)
     const value = RoundSigFig(calculateResult(), 2);
     //_results("missing") returns missing input error
     if (absorbance === 0 || pathlength === 0 || (selectProtein === "custom" && sequence === "")) { _results("missing") }
     //_results("invalid") returns invalid input error
     else if (absorbance < 0 || pathlength < 0 || dilutionFactor < 0 || ec < 0 || mw < 0) { _results("invalid") }
+    //_results("errorEC") returns error for dividing by 0 because of extinction coefficient value = 0
+    else if (value === Infinity && ec === 0) { _results("errorEC") }
+    //_results("errorPL") returns error for dividing by 0 because of pathlength value = 0
+    else if (value === Infinity) { _results("errorPL") }
     //_results("error") returns general error, unable to calculate
-    else if (isNaN(value) === true || value === Infinity) { _results("error") }
+    else if (isNaN(value) === true) { _results("error") }
     else { _results(value) }
   }
 
   const renderPageContent = () => {
     return (
       <>
-        <h1>Protein Concentration Calculator</h1>
-        <div>
+        <div style={{ minWidth: "900px" }}>
+          <h1>Protein Concentration Calculator</h1>
           The concentration of Protein in solution can be determined by substituting the molecular weight, extinction coefficient and λ<sub>max</sub> into a derived form of the Beer-Lambert Law. A substance's λ<sub>max</sub> is the wavelength at which it experiences the strongest absorbance. For Protein, this wavelength is 280 nm.
           <br /><br />
           The absorbance at λ<sub>max</sub> can be measured using a spectrophotometer. There are some important things to keep in mind when measuring 280 absorbance:
@@ -185,7 +188,8 @@ const ProteinConcentrationCalculator = (props: any) => {
             style={{
               display: "inline-block",
               width: "50%",
-              verticalAlign: "top"
+              verticalAlign: "top",
+              minWidth: "470px"
             }}>
             <h3> How to use this tool</h3>
             <div>
@@ -207,7 +211,8 @@ const ProteinConcentrationCalculator = (props: any) => {
               display: "inline-block",
               width: "50%",
               verticalAlign: "top",
-              whiteSpace: "nowrap"
+              whiteSpace: "nowrap",
+              minWidth: "370px"
             }}>
             <br />
             <table className="inputTable"
@@ -299,15 +304,15 @@ const ProteinConcentrationCalculator = (props: any) => {
         <tr>
           <td>MW</td>
           <td>
-            {(resultsMW > 0) ? <> {RoundSigFig((resultsMW / 1000), 2)} kDA </> :
-              (resultsValidSeq === false) ? "Invalid or unrecognized sequence" :
+            {(mw > 0) ? <> {RoundSigFig((mw / 1000), 2)} kDA </> :
+              (validSeq === false) ? "Invalid or unrecognized sequence" :
                 "Waiting for sequence"}</td>
         </tr>
         <tr>
           <td>Extinction coefficient</td>
           <td>
-            {(resultsEC > 0) ? <> {resultsEC} M<sup>-1</sup> cm<sup>-1</sup></> :
-              (resultsValidSeq === false) ? "Invalid or unrecognized sequence" :
+            {(ec > 0) ? <> {ec} M<sup>-1</sup> cm<sup>-1</sup></> :
+              (validSeq === false) ? "Invalid or unrecognized sequence" :
                 "Waiting for sequence"}</td>
         </tr>
       </>
@@ -365,15 +370,11 @@ const ProteinConcentrationCalculator = (props: any) => {
               <td style={{ color: "blue", textAlign: "left", fontWeight: "bold" }}>
                 {(results === "missing") ? "Error: Missing input" :
                   (results === "invalid") ? "Error: Invalid input" :
-                    (results === "error") ? "Error: Unable to calculate concentration" : results + " mg/mL"}
+                    (results === "errorEC") ? "Error: Invalid extinction coefficient value" :
+                      (results === "errorPL") ? "Error: Invalid pathlength value" :
+                        (results === "error") ? "Error: Unable to calculate concentration" : results + " mg/mL"}
               </td>
             </tr>
-            {/* Testing Suite for internal values
-                <br />Test specs<br />The Absorbance: {absorbance}<br />The pathlength: {pathlength}<br />The EC: {ec}<br />The MW: {mw}<br />The DF: {dilutionFactor}<br />The result is: {results}<br />
-                  {console.log("The Absorbance is:" + absorbance)}
-                  {console.log("The pathlength is:" + pathlength)}
-                  {console.log("The dilutionFactor is:" + dilutionFactor)}
-                    {console.log("The result is:" + results)}*/}
           </tbody>
         </table>
       </div>
@@ -386,7 +387,7 @@ const ProteinConcentrationCalculator = (props: any) => {
         <br />
         <hr />
         <h3>References</h3>
-        <table className="refTable">
+        <table className="refTable" style={{ whiteSpace: "nowrap" }}>
           <colgroup>
             <col style={{ width: "5%" }}></col>
             <col style={{ width: "95%" }}></col>
@@ -394,18 +395,18 @@ const ProteinConcentrationCalculator = (props: any) => {
           <tbody>
             <tr><td colSpan={2}>This online tool may be cited as follows</td></tr>
             <tr>
-              <td style={{ fontWeight: "bold", whiteSpace: "nowrap" }}>MLA</td>
-              <td style={{ whiteSpace: "nowrap" }}>"Quest Calculate&trade; Protein Concentration Calculator." <span style={{ fontStyle: "italic" }}>AAT Bioquest, Inc</span>, 30 Nov.2021, https://www.aatbio.com/tools/calculate-protein-concentration.</td>
+              <td style={{ fontWeight: "bold" }}>MLA</td>
+              <td >"Quest Calculate&trade; Protein Concentration Calculator." <span style={{ fontStyle: "italic" }}>AAT Bioquest, Inc</span>, 30 Nov.2021, https://www.aatbio.com/tools/calculate-protein-concentration.</td>
             </tr>
             <tr>
-              <td style={{ fontWeight: "bold", whiteSpace: "nowrap" }}>APA</td>
-              <td style={{ whiteSpace: "nowrap" }}>AAT Bioquest, Inc.(2021, November 30).<span style={{ fontStyle: "italic" }}>Quest Calculate™ Protein Concentration Calculator</span>. Retrieved from https://www.aatbio.com/tools/calculate-protein-concentration</td>
+              <td style={{ fontWeight: "bold" }}>APA</td>
+              <td >AAT Bioquest, Inc.(2021, November 30).<span style={{ fontStyle: "italic" }}>Quest Calculate™ Protein Concentration Calculator</span>. Retrieved from https://www.aatbio.com/tools/calculate-protein-concentration</td>
             </tr>
             <br />
-            <tr><td colSpan={2} style={{ whiteSpace: "nowrap" }}>This online tool has been cited in the following publications</td></tr>
-            <tr><td colSpan={2} style={{ whiteSpace: "nowrap" }}><a href="https://bsppjournals.onlinelibrary.wiley.com/doi/full/10.1111/mpp.13045" target="_blank" rel="noopener noreferrer" style={{ color: "blue", textDecoration: "none" }}>A haustorial-expressed lytic polysaccharide monooxygenase from the cucurbit powdery mildew pathogen <span style={{ fontStyle: "italic" }}>Podosphaera xanthii</span> contributes to the suppression of chitin-triggered immunity</a></td></tr>
-            <tr><td colSpan={2} style={{ whiteSpace: "nowrap" }}><span style={{ fontWeight: "bold" }}>Authors</span>: &Aacute;lvaro Polonio, Dolores Fern&aacute;ndez-Ortu&ntilde;o, Antonio de Vicente, Alejandro P&eacute;rez-Garc&iacute;a</td></tr>
-            <tr><td colSpan={2} style={{ whiteSpace: "nowrap" }}><span style={{ fontWeight: "bold" }}>Journal</span>: Molecular Plant Pathology (2021)</td></tr>
+            <tr><td colSpan={2}>This online tool has been cited in the following publications</td></tr>
+            <tr><td colSpan={2}><a href="https://bsppjournals.onlinelibrary.wiley.com/doi/full/10.1111/mpp.13045" target="_blank" rel="noopener noreferrer" style={{ color: "blue", textDecoration: "none" }}>A haustorial-expressed lytic polysaccharide monooxygenase from the cucurbit powdery mildew pathogen <span style={{ fontStyle: "italic" }}>Podosphaera xanthii</span> contributes to the suppression of chitin-triggered immunity</a></td></tr>
+            <tr><td colSpan={2}><span style={{ fontWeight: "bold" }}>Authors</span>: &Aacute;lvaro Polonio, Dolores Fern&aacute;ndez-Ortu&ntilde;o, Antonio de Vicente, Alejandro P&eacute;rez-Garc&iacute;a</td></tr>
+            <tr><td colSpan={2}><span style={{ fontWeight: "bold" }}>Journal</span>: Molecular Plant Pathology (2021)</td></tr>
           </tbody>
         </table>
       </div >
