@@ -396,11 +396,11 @@ const ProteinConcentrationCalculator = (props: any) => {
             <tr><td colSpan={2}>This online tool may be cited as follows</td></tr>
             <tr>
               <td style={{ fontWeight: "bold" }}>MLA</td>
-              <td >"Quest Calculate&trade; Protein Concentration Calculator." <span style={{ fontStyle: "italic" }}>AAT Bioquest, Inc</span>, 30 Nov.2021, https://www.aatbio.com/tools/calculate-protein-concentration.</td>
+              <td >"Quest Calculate&trade; Protein Concentration Calculator." <span style={{ fontStyle: "italic" }}>AAT Bioquest, Inc</span>, 30 Nov. 2021, https://www.aatbio.com/tools/calculate-protein-concentration.</td>
             </tr>
             <tr>
               <td style={{ fontWeight: "bold" }}>APA</td>
-              <td >AAT Bioquest, Inc.(2021, November 30).<span style={{ fontStyle: "italic" }}>Quest Calculate™ Protein Concentration Calculator</span>. Retrieved from https://www.aatbio.com/tools/calculate-protein-concentration</td>
+              <td >AAT Bioquest, Inc. (2021, November 30). <span style={{ fontStyle: "italic" }}>Quest Calculate&trade; Protein Concentration Calculator</span>. Retrieved from https://www.aatbio.com/tools/calculate-protein-concentration</td>
             </tr>
             <br />
             <tr><td colSpan={2}>This online tool has been cited in the following publications</td></tr>
