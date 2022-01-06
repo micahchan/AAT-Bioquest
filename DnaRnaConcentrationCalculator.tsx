@@ -2,9 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { RoundSigFig } from './Rounding';
 
 const DnaRnaConcentrationCalculator = (props: { type: "DNA" | "RNA" }) => {
-    const [type, _type] = useState(props.type);
-    const [selectDNA, _selectDNA] = useState("dsDNA");
-    const [selectRNA, _selectRNA] = useState("ssRNA");
+    const [select, _select] = useState((props.type === "DNA") ? "dsDNA" : "ssRNA");
     const [strandType, _strandType] = useState("dsDNA");
     const [sequence, _sequence] = useState("");
     const [mw, _mw] = useState(-99);
@@ -12,7 +10,7 @@ const DnaRnaConcentrationCalculator = (props: { type: "DNA" | "RNA" }) => {
     const [absorbance, _absorbance] = useState(0);
     const [dilutionFactor, _dilutionFactor] = useState(1);
     const [pathlength, _pathlength] = useState(0);
-    const [cf, _cf] = useState(0);
+    const [cf, _cf] = useState((props.type === "DNA") ? 50 : 40);
     const [validSeq, _validSeq] = useState<boolean | null>(null);
     const [resultsMW, _resultsMW] = useState(0);
     const [resultsEC, _resultsEC] = useState(0);
@@ -21,95 +19,135 @@ const DnaRnaConcentrationCalculator = (props: { type: "DNA" | "RNA" }) => {
     const [resultsPL, _resultsPL] = useState(0);
     const [resultsCF, _resultsCF] = useState(0);
     const [results, _results] = useState<number | string | null>(null);
-    /*
-        useEffect(() => {
-            const calculatePeptideValues = () => {
-                const aa_3: string[] = ['ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLU', 'GLN', 'GLY', 'HIS', 'ILE', 'LEU', 'LYS', 'MET', 'PHE', 'PRO', 'SER', 'THR', 'TRP', 'TYR', 'VAL'];
-                const aa_1: string[] = ['A', 'R', 'N', 'D', 'C', 'E', 'Q', 'G', 'H', 'I', 'L', 'K', 'M', 'F', 'P', 'S', 'T', 'W', 'Y', 'V'];
-                const aaValuesObj: any = {
-                    'ALA': 89.094, 'A': 89.094,
-                    'ARG': 174.203, 'R': 174.203,
-                    'ASN': 132.119, 'N': 132.119,
-                    'ASP': 133.104, 'D': 133.104,
-                    'CYS': 121.154, 'C': 121.154,
-                    'GLU': 147.131, 'E': 147.131,
-                    'GLN': 146.146, 'Q': 146.146,
-                    'GLY': 75.067, 'G': 75.067,
-                    'HIS': 155.156, 'H': 155.156,
-                    'ILE': 131.175, 'I': 131.175,
-                    'LEU': 131.175, 'L': 131.175,
-                    'LYS': 146.189, 'K': 146.189,
-                    'MET': 149.208, 'M': 149.208,
-                    'PHE': 165.192, 'F': 165.192,
-                    'PRO': 115.132, 'P': 115.132,
-                    'SER': 105.093, 'S': 105.093,
-                    'THR': 119.119, 'T': 119.119,
-                    'TRP': 204.228, 'W': 204.228,
-                    'TYR': 181.191, 'Y': 181.191,
-                    'VAL': 117.148, 'V': 117.148
-                };
-                let aaType;
-                let pMW = 0;
-                let pEC = 0;
-    
-                const formattedSeq = sequence.toUpperCase();
-                const splitCheck = formattedSeq.split("");
-                const splitCheckThree = formattedSeq.match(/.{1,3}/g) || [];
-    
-                //checks to see if each part of the sequence fits within a value in the array of amino acids
-                if (splitCheck.length % 3 === 0 && (splitCheckThree.every(r => aa_3.indexOf(r) >= 0) === true)) {
-                    aaType = 't';
-                }
-                else if (splitCheck.every(r => aa_1.indexOf(r) >= 0) === true) {
-                    aaType = 's';
-                }
-    
-                if (aaType === 't') {
-                    const splitCheckThree = formattedSeq.match(/.{1,3}/g) || [];
-                    for (let i = 0; i < splitCheckThree.length; i++) {
-                        const key = splitCheckThree[i];
-                        if (splitCheckThree[i] === 'TRP') { pEC += 5690; }
-                        if (splitCheckThree[i] === 'TYR') { pEC += 1280; }
-                        if (splitCheckThree[i] === 'CYS') { pEC += 120; }
-    
-                        pMW += aaValuesObj[key];
-                        if (splitCheckThree.length > 1 && i !== splitCheckThree.length - 1) { pMW -= 18.015; }
+
+    useEffect(() => {
+        const calculateNucleotideValues = () => {
+            const dnaValuesObj: any = { 'A': 331.2, 'T': 322.2, 'G': 347.2, 'C': 307.2 };
+            const rnaValuesObj: any = { 'A': 347.2, 'U': 324.2, 'G': 363.2, 'C': 323.2 };
+
+            let mw = 0;
+            let mw_comp = 0;
+            let ec = 0;
+            let ec_comp = 0;
+            let base_count = 0;
+            let at_count = 0;
+            let gc_count = 0;
+            let hypochromicity = 0;
+            let sigma_D = 0;
+
+            const formattedSeq = sequence.toUpperCase();
+            const split = formattedSeq.split("");
+
+            if (props.type === "DNA") {
+                for (let i = 0; i < split.length; i++) {
+                    const key = split[i];
+                    mw += dnaValuesObj[key];
+
+                    if (split[i] === "T") { mw_comp += 331.2; at_count++; }
+                    else if (split[i] === "A") { mw_comp += 322.2; at_count++; }
+                    else if (split[i] === "G") { mw_comp += 307.2; gc_count++; }
+                    else if (split[i] === "C") { mw_comp += 347.2; gc_count++; }
+                    base_count++;
+
+                    if (i !== (split.length - 1)) {
+                        if (split[i] === "T" && split[i + 1] === "A") { ec += 23400; ec_comp += 23400; }
+                        else if (split[i] === "T" && split[i + 1] === "T") { ec += 16800; ec_comp += 27400; }
+                        else if (split[i] === "T" && split[i + 1] === "G") { ec += 19000; ec_comp += 21200; }
+                        else if (split[i] === "T" && split[i + 1] === "C") { ec += 16200; ec_comp += 25200; }
+                        else if (split[i] === "A" && split[i + 1] === "A") { ec += 27400; ec_comp += 16800; }
+                        else if (split[i] === "A" && split[i + 1] === "T") { ec += 22800; ec_comp += 22800; }
+                        else if (split[i] === "A" && split[i + 1] === "G") { ec += 25000; ec_comp += 15200; }
+                        else if (split[i] === "A" && split[i + 1] === "C") { ec += 21200; ec_comp += 20000; }
+                        else if (split[i] === "C" && split[i + 1] === "A") { ec += 21200; ec_comp += 19000; }
+                        else if (split[i] === "C" && split[i + 1] === "T") { ec += 15200; ec_comp += 25000; }
+                        else if (split[i] === "C" && split[i + 1] === "G") { ec += 18000; ec_comp += 18000; }
+                        else if (split[i] === "C" && split[i + 1] === "C") { ec += 14600; ec_comp += 21600; }
+                        else if (split[i] === "G" && split[i + 1] === "A") { ec += 25200; ec_comp += 16200; }
+                        else if (split[i] === "G" && split[i + 1] === "T") { ec += 20000; ec_comp += 21200; }
+                        else if (split[i] === "G" && split[i + 1] === "G") { ec += 21600; ec_comp += 14600; }
+                        else if (split[i] === "G" && split[i + 1] === "C") { ec += 17600; ec_comp += 17600; }
                     }
-                }
-                else if (aaType === 's') {
-                    for (let i = 0; i < splitCheck.length; i++) {
-                        const key = splitCheck[i];
-                        if (splitCheck[i] === 'W') { pEC += 5690; }
-                        if (splitCheck[i] === 'Y') { pEC += 1280; }
-                        if (splitCheck[i] === 'C') { pEC += 120; }
-    
-                        pMW += aaValuesObj[key];
-                        if (splitCheck.length > 1 && i !== splitCheck.length - 1) { pMW -= 18.015; }
+
+                    if (i !== 0 && i !== (split.length - 1)) {
+                        if (split[i] === "T") { ec -= 8700; ec_comp -= 15400; }
+                        else if (split[i] === "A") { ec -= 15400; ec_comp -= 8700; }
+                        else if (split[i] === "G") { ec -= 11500; ec_comp -= 7400; }
+                        else if (split[i] === "C") { ec -= 7400; ec_comp -= 11500; }
                     }
-                }
-                if (aaType !== 's' && aaType !== 't') {
-                    _mw(-99);
-                    _ec(-99);
-                    _validSeq(false);
-                }
-                else {
-                    _mw(pMW);
-                    _ec(pEC);
-                    _validSeq(true);
+
+                    console.log("The current value of ec is: " + ec);
                 }
             }
-    
-            if (selectProtein === "custom") {
-                _mw(-99);
-                _ec(-99);
+            else if (props.type === "RNA") {
+                for (let i = 0; i < split.length; i++) {
+                    const key = split[i];
+                    mw += rnaValuesObj[key];
+
+                    if (split[i] === "U") { mw_comp += 347.2 }
+                    else if (split[i] === "A") { mw_comp += 324.2 }
+                    else if (split[i] === "G") { mw_comp += 323.2 }
+                    else if (split[i] === "C") { mw_comp += 363.2 }
+
+                    if (i !== (split.length - 1)) {
+                        if (split[i] === "U" && split[i + 1] === "A") { ec += 24600; ec_comp += 24600; }
+                        else if (split[i] === "U" && split[i + 1] === "U") { ec += 19600; ec_comp += 27400; }
+                        else if (split[i] === "U" && split[i + 1] === "G") { ec += 20000; ec_comp += 21000; }
+                        else if (split[i] === "U" && split[i + 1] === "C") { ec += 17200; ec_comp += 25200; }
+                        else if (split[i] === "A" && split[i + 1] === "A") { ec += 27400; ec_comp += 19600; }
+                        else if (split[i] === "A" && split[i + 1] === "U") { ec += 24000; ec_comp += 24000; }
+                        else if (split[i] === "A" && split[i + 1] === "G") { ec += 25000; ec_comp += 16200; }
+                        else if (split[i] === "A" && split[i + 1] === "C") { ec += 21200; ec_comp += 21200; }
+                        else if (split[i] === "C" && split[i + 1] === "A") { ec += 21000; ec_comp += 20000; }
+                        else if (split[i] === "C" && split[i + 1] === "U") { ec += 16200; ec_comp += 25000; }
+                        else if (split[i] === "C" && split[i + 1] === "G") { ec += 17800; ec_comp += 17800; }
+                        else if (split[i] === "C" && split[i + 1] === "C") { ec += 14200; ec_comp += 21600; }
+                        else if (split[i] === "G" && split[i + 1] === "A") { ec += 25200; ec_comp += 17200; }
+                        else if (split[i] === "G" && split[i + 1] === "U") { ec += 21200; ec_comp += 21000; }
+                        else if (split[i] === "G" && split[i + 1] === "G") { ec += 21600; ec_comp += 14200; }
+                        else if (split[i] === "G" && split[i + 1] === "C") { ec += 17400; ec_comp += 17400; }
+                    }
+
+                    if (i !== 0 && i !== (split.length - 1)) {
+                        if (split[i] === "U") { ec -= 9900; ec_comp -= 15400; }
+                        else if (split[i] === "A") { ec -= 15400; ec_comp -= 9900; }
+                        else if (split[i] === "G") { ec -= 11500; ec_comp -= 7200; }
+                        else if (split[i] === "C") { ec -= 7200; ec_comp -= 11500; }
+                    }
+                }
             }
-    
-            if (selectProtein !== "custom" || sequence === "" || sequence === undefined || sequence === null) { return; }
-            else { calculatePeptideValues(); }
-        }, [sequence, selectProtein])
-    */
+            hypochromicity = (0.287 * (at_count / base_count)) + (0.059 * (gc_count / base_count));
+            sigma_D = RoundSigFig((1 - hypochromicity) * (ec + ec_comp), 5);
+            mw = mw - ((split.length - 1) * 18.015);
+            mw_comp = mw_comp - ((split.length - 1) * 18.015);
+
+            console.log("The hypochromicity is: " + hypochromicity);
+            console.log("The sigma_D is: " + sigma_D);
+            console.log("The ec is: " + ec);
+
+            if (props.type === "DNA" && strandType === "dsDNA") {
+                _mw(mw + mw_comp);
+                _ec(sigma_D);
+            }
+            else {
+                _mw(mw);
+                _ec(ec);
+            }
+            _validSeq(true);
+        }
+
+        if (select === "custom") {
+            _mw(-99);
+            _ec(-99);
+        }
+
+        if (select !== "custom" || sequence === "" || sequence === undefined || sequence === null) { return; }
+        else { calculateNucleotideValues(); }
+    }, [sequence, select, strandType])
+
     const handleKeyPress = (event: any) => {
-        const string = event.target.value.replaceAll(/[^a-zA-z]/g, "");
+        let string;
+        if (props.type === "DNA") { string = event.target.value.replaceAll(/[^ATGC]/gi, "") }
+        else if (props.type === "RNA") { string = event.target.value.replaceAll(/[^AUGC]/gi, "") }
         _sequence(string);
     }
 
@@ -125,10 +163,9 @@ const DnaRnaConcentrationCalculator = (props: { type: "DNA" | "RNA" }) => {
 
     const handleDropDownMenu = (event: any) => {
         const state = event.target.value;
-        if (props.type === "DNA") { _selectDNA(state) }
-        else if (props.type === "RNA") { _selectRNA(state) }
-        let valueCF = event.target[event.target.selectedIndex].getAttribute('data-ec');
-        _ec(valueCF);
+        _select(state);
+        let valueCF = event.target[event.target.selectedIndex].getAttribute('data-CF');
+        _cf(valueCF);
     }
 
     const handleInputAbsorbance = (event: any) => {
@@ -151,8 +188,7 @@ const DnaRnaConcentrationCalculator = (props: { type: "DNA" | "RNA" }) => {
 
     const handleMouseClick = (event: any) => {
         const state = "custom";
-        if (props.type === "DNA") { _selectDNA(state) }
-        else if (props.type === "RNA") { _selectRNA(state) }
+        _select(state);
     }
 
     const handleRadioButtonClick = (event: any) => {
@@ -164,15 +200,22 @@ const DnaRnaConcentrationCalculator = (props: { type: "DNA" | "RNA" }) => {
         _resultsABS(absorbance);
         _resultsDF(dilutionFactor);
         _resultsPL(pathlength);
-        if (selectDNA !== "custom" || selectRNA !== "custom")
-            //_resultsEC(ec);
-            //_resultsMW(mw);
-            _resultsCF(cf);
-        const value = RoundSigFig(calculateRatioResult(), 2);
+        _resultsCF(cf);
+        _resultsEC(ec);
+        _resultsMW(mw);
+        console.log(mw);
+        console.log(ec);
+        let value;
+        if (select !== "custom") {
+            value = RoundSigFig(calculateRatioResult(), 2);
+        }
+        else {
+            value = RoundSigFig(calculateEquationResults(), 2);
+        }
         //_results("missing") returns missing input error
-        if (absorbance === 0 || pathlength === 0 || (selectDNA === "custom" && sequence === "") || (selectRNA === "custom" && sequence === "")) { _results("missing") }
+        if (absorbance === 0 || pathlength === 0 || (select === "custom" && sequence === "")) { _results("missing") }
         //_results("invalid") returns invalid input error
-        else if (absorbance < 0 || pathlength < 0 || dilutionFactor < 0 || ec < 0 || mw < 0) { _results("invalid") }
+        else if (absorbance < 0 || pathlength < 0 || dilutionFactor < 0 || ((ec < 0 || mw < 0) && cf < 0)) { _results("invalid") }
         //_results("errorEC") returns error for dividing by 0 because of extinction coefficient value = 0
         else if (value === Infinity && ec === 0) { _results("errorEC") }
         //_results("errorPL") returns error for dividing by 0 because of pathlength value = 0
@@ -186,13 +229,13 @@ const DnaRnaConcentrationCalculator = (props: { type: "DNA" | "RNA" }) => {
         return (
             <>
                 <div style={{ minWidth: "900px" }}>
-                    <h1>{type} Concentration Calculator</h1>
-                    The concentration of {type} in solution can be determined by substituting the molecular weight, extinction coefficient and λ<sub>max</sub> into a derived form of the Beer-Lambert Law. A substance's λ<sub>max</sub> is the wavelength at which it experiences the strongest absorbance. For {type}, this wavelength is 260 nm.
+                    <h1>{props.type} Concentration Calculator</h1>
+                    The concentration of {props.type} in solution can be determined by substituting the molecular weight, extinction coefficient and λ<sub>max</sub> into a derived form of the Beer-Lambert Law. A substance's λ<sub>max</sub> is the wavelength at which it experiences the strongest absorbance. For {props.type}, this wavelength is 260 nm.
                     <br /><br />
                     The absorbance at λ<sub>max</sub> can be measured using a spectrophotometer. There are some important things to keep in mind when measuring 260 absorbance:
                     <br /><br />
                     <ol>
-                        <li>The {type} should be well-dissolved in solution. {type} precipitation will cause inaccuracies in concentration calculations.</li>
+                        <li>The {props.type} should be well-dissolved in solution. {props.type} precipitation will cause inaccuracies in concentration calculations.</li>
                         <br />
                         <li>The absorbance reading should not exceed the maximum detection limit of the instrumentation. This can be identified by a plateau in the absorbance spectrum. If the absorbance spectrum plateaus, dilute the sample and try again.</li>
                         <br />
@@ -240,21 +283,21 @@ const DnaRnaConcentrationCalculator = (props: { type: "DNA" | "RNA" }) => {
                             cellPadding="5px">
                             <tbody>
                                 <tr>
-                                    <td>{type}</td>
-                                    <td>{(type === "DNA") ?
-                                        <><select className="dnaDropMenu" value={selectDNA} onChange={handleDropDownMenu}>
-                                            <option value="dsDNA" data-EX={260} data-EC={50} data-MW={-99}>dsDNA</option>
-                                            <option value="ssDNA" data-EX={260} data-EC={33} data-MW={-99}>ssDNA</option>
-                                            <option value="custom" data-EX={-99} data-EC={-99} data-MW={-99}>Custom sequence</option>
+                                    <td>{props.type}</td>
+                                    <td>{(props.type === "DNA") ?
+                                        <><select className="dnaDropMenu" value={select} onChange={handleDropDownMenu}>
+                                            <option value="dsDNA" data-EX={260} data-CF={50} data-MW={-99}>dsDNA</option>
+                                            <option value="ssDNA" data-EX={260} data-CF={33} data-MW={-99}>ssDNA</option>
+                                            <option value="custom" data-EX={-99} data-CF={-99} data-MW={-99}>Custom sequence</option>
                                         </select></> :
-                                        <><select className="rnaDropMenu" value={selectRNA} onChange={handleDropDownMenu}>
-                                            <option value="ssRNA" data-EX={260} data-EC={40} data-MW={-99}>ssRNA</option>
-                                            <option value="custom" data-EX={-99} data-EC={-99} data-MW={-99}>Custom sequence</option>
+                                        <><select className="rnaDropMenu" value={select} onChange={handleDropDownMenu}>
+                                            <option value="ssRNA" data-EX={260} data-CF={40} data-MW={-99}>ssRNA</option>
+                                            <option value="custom" data-EX={-99} data-CF={-99} data-MW={-99}>Custom sequence</option>
                                         </select></>}
                                     </td>
                                 </tr>
-                                {(type === "DNA" && selectDNA === "custom") ? renderDnaCustomSeq() :
-                                    (type === "RNA" && selectRNA === "custom") ? renderRnaCustomSeq() : ""}
+                                {(props.type === "DNA" && select === "custom") ? renderDnaCustomSec() :
+                                    (props.type === "RNA" && select === "custom") ? renderRnaCustomSec() : ""}
                                 <tr>
                                     <td>Absorbance at λ<sub>max</sub></td>
                                     <td><input
@@ -304,30 +347,32 @@ const DnaRnaConcentrationCalculator = (props: { type: "DNA" | "RNA" }) => {
         )
     }
 
-    const renderGenericCustomSeq = () => {
-        <>
-            <tr>
-                <td>Name</td>
-                <td>Not identified</td>
-            </tr>
-            <tr>
-                <td>MW</td>
-                <td>
-                    {(mw > 0) ? <> {RoundSigFig((mw / 1000), 2)} kDA </> :
-                        (validSeq === false) ? "Invalid or unrecognized sequence" :
-                            "Waiting for sequence"}</td>
-            </tr>
-            <tr>
-                <td>Extinction coefficient</td>
-                <td>
-                    {(ec > 0) ? <> {ec} M<sup>-1</sup> cm<sup>-1</sup></> :
-                        (validSeq === false) ? "Invalid or unrecognized sequence" :
-                            "Waiting for sequence"}</td>
-            </tr>
-        </>
+    const renderGenericCustomSec = () => {
+        return (
+            <>
+                <tr>
+                    <td>Name</td>
+                    <td>Not identified</td>
+                </tr>
+                <tr>
+                    <td>MW</td>
+                    <td>
+                        {(mw > 0) ? <> {RoundSigFig((mw / 1000), 2)} kDA </> :
+                            (validSeq === false) ? "Invalid or unrecognized sequence" :
+                                "Waiting for sequence"}</td>
+                </tr>
+                <tr>
+                    <td>Extinction coefficient</td>
+                    <td>
+                        {(ec > 0) ? <> {ec} M<sup>-1</sup> cm<sup>-1</sup></> :
+                            (validSeq === false) ? "Invalid or unrecognized sequence" :
+                                "Waiting for sequence"}</td>
+                </tr>
+            </>
+        )
     }
 
-    const renderDnaCustomSeq = () => {
+    const renderDnaCustomSec = () => {
         return (
             <>
                 <tr>
@@ -347,12 +392,12 @@ const DnaRnaConcentrationCalculator = (props: { type: "DNA" | "RNA" }) => {
                         <input type="radio" onClick={handleRadioButtonClick} value="ssDNA" name="strand" /> ssDNA
                     </td>
                 </tr>
-                {renderGenericCustomSeq()}
+                {renderGenericCustomSec()}
             </>
         )
     }
 
-    const renderRnaCustomSeq = () => {
+    const renderRnaCustomSec = () => {
         return (
             <>
                 <tr>
@@ -365,7 +410,107 @@ const DnaRnaConcentrationCalculator = (props: { type: "DNA" | "RNA" }) => {
                     >
                     </textarea></td>
                 </tr>
-                {renderGenericCustomSeq()}
+                {renderGenericCustomSec()}
+            </>
+        )
+    }
+
+    const renderEquationResults = () => {
+        return (
+            <>
+                <tr>
+                    <td>Concentration</td>
+                    <td>=</td>
+                    <td>
+                        <div style={{
+                            paddingBottom: "3px",
+                            marginBottom: "3px",
+                            borderBottom: "solid 1px black"
+                        }}>Absorbance at λ<sub>max</sub></div>
+                        <div>Extinction coefficient&nbsp;&nbsp;&nbsp;×&nbsp;&nbsp;&nbsp;Pathlength</div>
+                    </td>
+                    <td>×</td>
+                    <td>Molecular weight</td>
+                    <td>×</td>
+                    <td>Dilution Factor</td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>=</td>
+                    <td>
+                        <div style={{
+                            paddingBottom: "3px",
+                            marginBottom: "3px",
+                            borderBottom: "solid 1px black"
+                        }}>{resultsABS}</div>
+                        <div>{resultsEC} M<sup>-1</sup> cm<sup>-1</sup>&nbsp;&nbsp;&nbsp;×&nbsp;&nbsp;&nbsp;{resultsPL} cm</div>
+                    </td>
+                    <td>×</td>
+                    <td>{(RoundSigFig((resultsMW / 1000), 2)) * 1000} g/mol</td>
+                    <td>×</td>
+                    <td>{resultsDF}</td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>=</td>
+                    <td style={{ color: "blue", textAlign: "left", fontWeight: "bold" }}>
+                        {(results === "missing") ? "Error: Missing input" :
+                            (results === "invalid") ? "Error: Invalid input" :
+                                (results === "errorEC") ? "Error: Invalid extinction coefficient value" :
+                                    (results === "errorPL") ? "Error: Invalid pathlength value" :
+                                        (results === "error") ? "Error: Unable to calculate concentration" : results + " mg/mL"}
+                    </td>
+                </tr>
+            </>
+        )
+    }
+
+    const renderRatioResults = () => {
+        return (
+            <>
+                <tr>
+                    <td>Concentration</td>
+                    <td>=</td>
+                    <td>
+                        <div style={{
+                            paddingBottom: "3px",
+                            marginBottom: "3px",
+                            borderBottom: "solid 1px black"
+                        }}>Absorbance at λ<sub>max</sub></div>
+                        <div>Pathlength</div>
+                    </td>
+                    <td>×</td>
+                    <td>Conversion Factor</td>
+                    <td>×</td>
+                    <td>Dilution Factor</td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>=</td>
+                    <td>
+                        <div style={{
+                            paddingBottom: "3px",
+                            marginBottom: "3px",
+                            borderBottom: "solid 1px black"
+                        }}>{resultsABS}</div>
+                        <div>{resultsPL} cm</div>
+                    </td>
+                    <td>×</td>
+                    <td>{resultsCF} &micro;g/mol</td>
+                    <td>×</td>
+                    <td>{resultsDF}</td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>=</td>
+                    <td style={{ color: "blue", textAlign: "left", fontWeight: "bold" }}>
+                        {(results === "missing") ? "Error: Missing input" :
+                            (results === "invalid") ? "Error: Invalid input" :
+                                (results === "errorEC") ? "Error: Invalid extinction coefficient value" :
+                                    (results === "errorPL") ? "Error: Invalid pathlength value" :
+                                        (results === "error") ? "Error: Unable to calculate concentration" : <>{results} &micro;g/mL</>}
+                    </td>
+                </tr>
             </>
         )
     }
@@ -383,51 +528,7 @@ const DnaRnaConcentrationCalculator = (props: { type: "DNA" | "RNA" }) => {
                     }}
                     className="resultsTable">
                     <tbody>
-                        <tr>{(selectRNA === "custom" || selectDNA === "custom") ?
-                            <><
-                        </>
-                            : <><td>Concentration</td>
-                                <td>=</td>
-                                <td>
-                                    <div style={{
-                                        paddingBottom: "3px",
-                                        marginBottom: "3px",
-                                        borderBottom: "solid 1px black"
-                                    }}>Absorbance at λ<sub>max</sub></div>
-                                    <div>Extinction coefficient&nbsp;&nbsp;&nbsp;×&nbsp;&nbsp;&nbsp;Pathlength</div>
-                                </td>
-                                <td>×</td>
-                                <td>Molecular weight</td>
-                                <td>×</td>
-                                <td>Dilution Factor</td></>}
-                        </tr>
-                        <tr>
-                            <td></td>
-                            <td>=</td>
-                            <td>
-                                <div style={{
-                                    paddingBottom: "3px",
-                                    marginBottom: "3px",
-                                    borderBottom: "solid 1px black"
-                                }}>{resultsABS}</div>
-                                <div>{resultsEC} M<sup>-1</sup> cm<sup>-1</sup>&nbsp;&nbsp;&nbsp;×&nbsp;&nbsp;&nbsp;{resultsPL} cm</div>
-                            </td>
-                            <td>×</td>
-                            <td>{(selectDNA === "custom") ? (RoundSigFig((resultsMW / 1000), 2)) * 1000 : resultsMW} g/mol</td>
-                            <td>×</td>
-                            <td>{resultsDF}</td>
-                        </tr>
-                        <tr>
-                            <td></td>
-                            <td>=</td>
-                            <td style={{ color: "blue", textAlign: "left", fontWeight: "bold" }}>
-                                {(results === "missing") ? "Error: Missing input" :
-                                    (results === "invalid") ? "Error: Invalid input" :
-                                        (results === "errorEC") ? "Error: Invalid extinction coefficient value" :
-                                            (results === "errorPL") ? "Error: Invalid pathlength value" :
-                                                (results === "error") ? "Error: Unable to calculate concentration" : results + " mg/mL"}
-                            </td>
-                        </tr>
+                        {(select === "custom") ? renderEquationResults() : renderRatioResults()}
                     </tbody>
                 </table>
             </div>
@@ -449,13 +550,12 @@ const DnaRnaConcentrationCalculator = (props: { type: "DNA" | "RNA" }) => {
                         <tr><td colSpan={2}>This online tool may be cited as follows</td></tr>
                         <tr>
                             <td style={{ fontWeight: "bold" }}>MLA</td>
-                            <td>{(type === "DNA") ? <>"Quest Calculate&trade; DNA Concentration Calculator." <span style={{ fontStyle: "italic" }}>AAT Bioquest, Inc</span>, 08 Dec. 2021, https://www.aatbio.com/tools/calculate-DNA-concentration.</>
+                            <td>{(props.type === "DNA") ? <>"Quest Calculate&trade; DNA Concentration Calculator." <span style={{ fontStyle: "italic" }}>AAT Bioquest, Inc</span>, 08 Dec. 2021, https://www.aatbio.com/tools/calculate-DNA-concentration.</>
                                 : <>"Quest Calculate&trade; RNA Concentration Calculator." <span style={{ fontStyle: "italic" }}>AAT Bioquest, Inc</span>, 09 Dec. 2021, https://www.aatbio.com/tools/calculate-RNA-concentration.</>}</td>
-
                         </tr>
                         <tr>
                             <td style={{ fontWeight: "bold" }}>APA</td>
-                            <td>{(type === "DNA") ? <>AAT Bioquest, Inc. (2021, December 08). <span style={{ fontStyle: "italic" }}>Quest Calculate&trade; DNA Concentration Calculator</span>. Retrieved from https://www.aatbio.com/tools/calculate-DNA-concentration</>
+                            <td>{(props.type === "DNA") ? <>AAT Bioquest, Inc. (2021, December 08). <span style={{ fontStyle: "italic" }}>Quest Calculate&trade; DNA Concentration Calculator</span>. Retrieved from https://www.aatbio.com/tools/calculate-DNA-concentration</>
                                 : <>AAT Bioquest, Inc. (2021, December 09). <span style={{ fontStyle: "italic" }}>Quest Calculate&trade; RNA Concentration Calculator</span>. Retrieved from https://www.aatbio.com/tools/calculate-RNA-concentration</>}</td>
                         </tr>
                     </tbody>

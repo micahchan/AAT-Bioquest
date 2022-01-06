@@ -60,7 +60,6 @@ const ProteinConcentrationCalculator = (props: any) => {
       }
 
       if (aaType === 't') {
-        const splitCheckThree = formattedSeq.match(/.{1,3}/g) || [];
         for (let i = 0; i < splitCheckThree.length; i++) {
           const key = splitCheckThree[i];
           if (splitCheckThree[i] === 'TRP') { pEC += 5690; }
@@ -104,7 +103,7 @@ const ProteinConcentrationCalculator = (props: any) => {
   }, [sequence, selectProtein])
 
   const handleKeyPress = (event: any) => {
-    const string = event.target.value.replaceAll(/[^a-zA-z]/g, "");
+    const string = event.target.value.replaceAll(/[^a-zA-Z]/g, "");
     _sequence(string);
   }
 
