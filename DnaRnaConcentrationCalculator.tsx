@@ -1,6 +1,135 @@
 import React, { useState, useEffect } from 'react';
 import { RoundSigFig } from './Rounding';
 
+const RenderEquationResults = (props: { resultsABS: number, resultsEC: number, resultsPL: number, resultsMW: number, resultsDF: number, results: number | string | null }) => {
+    return (
+        <>
+            <div className="displayResults">
+                <h3>Results</h3>
+                <table
+                    cellPadding="5px"
+                    style={{
+                        marginLeft: "-5px",
+                        textAlign: "center",
+                        whiteSpace: "nowrap"
+                    }}
+                    className="resultsTable">
+                    <tbody>
+                        <tr>
+                            <td>Concentration</td>
+                            <td>=</td>
+                            <td>
+                                <div style={{
+                                    paddingBottom: "3px",
+                                    marginBottom: "3px",
+                                    borderBottom: "solid 1px black"
+                                }}>Absorbance at λ<sub>max</sub></div>
+                                <div>Extinction coefficient&nbsp;&nbsp;&nbsp;×&nbsp;&nbsp;&nbsp;Pathlength</div>
+                            </td>
+                            <td>×</td>
+                            <td>Molecular weight</td>
+                            <td>×</td>
+                            <td>Dilution Factor</td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td>=</td>
+                            <td>
+                                <div style={{
+                                    paddingBottom: "3px",
+                                    marginBottom: "3px",
+                                    borderBottom: "solid 1px black"
+                                }}>{props.resultsABS}</div>
+                                <div>{props.resultsEC} M<sup>-1</sup> cm<sup>-1</sup>&nbsp;&nbsp;&nbsp;×&nbsp;&nbsp;&nbsp;{props.resultsPL} cm</div>
+                            </td>
+                            <td>×</td>
+                            <td>{(RoundSigFig((props.resultsMW / 1000), 2)) * 1000} g/mol</td>
+                            <td>×</td>
+                            <td>{props.resultsDF}</td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td>=</td>
+                            <td style={{ color: "blue", textAlign: "left", fontWeight: "bold" }}>
+                                {(props.results === "missing") ? "Error: Missing input" :
+                                    (props.results === "invalid") ? "Error: Invalid input" :
+                                        (props.results === "errorEC") ? "Error: Invalid extinction coefficient value" :
+                                            (props.results === "errorPL") ? "Error: Invalid pathlength value" :
+                                                (props.results === "error") ? "Error: Unable to calculate concentration" : props.results + " mg/mL"}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </>
+    )
+}
+
+const RenderRatioResults = (props: { resultsABS: number, resultsPL: number, resultsCF: number, resultsDF: number, results: number | string | null }) => {
+    return (
+        <>
+            <div className="displayResults">
+                <h3>Results</h3>
+                <table
+                    cellPadding="5px"
+                    style={{
+                        marginLeft: "-5px",
+                        textAlign: "center",
+                        whiteSpace: "nowrap"
+                    }}
+                    className="resultsTable">
+                    <tbody>
+                        <tr>
+                            <td>Concentration</td>
+                            <td>=</td>
+                            <td>
+                                <div style={{
+                                    paddingBottom: "3px",
+                                    marginBottom: "3px",
+                                    borderBottom: "solid 1px black"
+                                }}>Absorbance at λ<sub>max</sub></div>
+                                <div>Pathlength</div>
+                            </td>
+                            <td>×</td>
+                            <td>Conversion Factor</td>
+                            <td>×</td>
+                            <td>Dilution Factor</td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td>=</td>
+                            <td>
+                                <div style={{
+                                    paddingBottom: "3px",
+                                    marginBottom: "3px",
+                                    borderBottom: "solid 1px black"
+                                }}>{props.resultsABS}</div>
+                                <div>{props.resultsPL} cm</div>
+                            </td>
+                            <td>×</td>
+                            <td>{props.resultsCF} &micro;g/mol</td>
+                            <td>×</td>
+                            <td>{props.resultsDF}</td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td>=</td>
+                            <td style={{ color: "blue", textAlign: "left", fontWeight: "bold" }}>
+                                {(props.results === "missing") ? "Error: Missing input" :
+                                    (props.results === "invalid") ? "Error: Invalid input" :
+                                        (props.results === "errorEC") ? "Error: Invalid extinction coefficient value" :
+                                            (props.results === "errorPL") ? "Error: Invalid pathlength value" :
+                                                (props.results === "error") ? "Error: Unable to calculate concentration" : <>{props.results} &micro;g/mL</>}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </>
+    )
+}
+
+
 const DnaRnaConcentrationCalculator = (props: { type: "DNA" | "RNA" }) => {
     const [select, _select] = useState((props.type === "DNA") ? "dsDNA" : "ssRNA");
     const [strandType, _strandType] = useState("dsDNA");
@@ -18,6 +147,7 @@ const DnaRnaConcentrationCalculator = (props: { type: "DNA" | "RNA" }) => {
     const [resultsDF, _resultsDF] = useState(0);
     const [resultsPL, _resultsPL] = useState(0);
     const [resultsCF, _resultsCF] = useState(0);
+    const [background, _background] = useState<boolean>(false);
     const [results, _results] = useState<number | string | null>(null);
 
     useEffect(() => {
@@ -74,8 +204,6 @@ const DnaRnaConcentrationCalculator = (props: { type: "DNA" | "RNA" }) => {
                         else if (split[i] === "G") { ec -= 11500; ec_comp -= 7400; }
                         else if (split[i] === "C") { ec -= 7400; ec_comp -= 11500; }
                     }
-
-                    console.log("The current value of ec is: " + ec);
                 }
             }
             else if (props.type === "RNA") {
@@ -119,10 +247,6 @@ const DnaRnaConcentrationCalculator = (props: { type: "DNA" | "RNA" }) => {
             sigma_D = RoundSigFig((1 - hypochromicity) * (ec + ec_comp), 5);
             mw = mw - ((split.length - 1) * 18.015);
             mw_comp = mw_comp - ((split.length - 1) * 18.015);
-
-            console.log("The hypochromicity is: " + hypochromicity);
-            console.log("The sigma_D is: " + sigma_D);
-            console.log("The ec is: " + ec);
 
             if (props.type === "DNA" && strandType === "dsDNA") {
                 _mw(mw + mw_comp);
@@ -203,14 +327,14 @@ const DnaRnaConcentrationCalculator = (props: { type: "DNA" | "RNA" }) => {
         _resultsCF(cf);
         _resultsEC(ec);
         _resultsMW(mw);
-        console.log(mw);
-        console.log(ec);
         let value;
         if (select !== "custom") {
             value = RoundSigFig(calculateRatioResult(), 2);
+            _background(false);
         }
         else {
             value = RoundSigFig(calculateEquationResults(), 2);
+            _background(true);
         }
         //_results("missing") returns missing input error
         if (absorbance === 0 || pathlength === 0 || (select === "custom" && sequence === "")) { _results("missing") }
@@ -415,126 +539,6 @@ const DnaRnaConcentrationCalculator = (props: { type: "DNA" | "RNA" }) => {
         )
     }
 
-    const renderEquationResults = () => {
-        return (
-            <>
-                <tr>
-                    <td>Concentration</td>
-                    <td>=</td>
-                    <td>
-                        <div style={{
-                            paddingBottom: "3px",
-                            marginBottom: "3px",
-                            borderBottom: "solid 1px black"
-                        }}>Absorbance at λ<sub>max</sub></div>
-                        <div>Extinction coefficient&nbsp;&nbsp;&nbsp;×&nbsp;&nbsp;&nbsp;Pathlength</div>
-                    </td>
-                    <td>×</td>
-                    <td>Molecular weight</td>
-                    <td>×</td>
-                    <td>Dilution Factor</td>
-                </tr>
-                <tr>
-                    <td></td>
-                    <td>=</td>
-                    <td>
-                        <div style={{
-                            paddingBottom: "3px",
-                            marginBottom: "3px",
-                            borderBottom: "solid 1px black"
-                        }}>{resultsABS}</div>
-                        <div>{resultsEC} M<sup>-1</sup> cm<sup>-1</sup>&nbsp;&nbsp;&nbsp;×&nbsp;&nbsp;&nbsp;{resultsPL} cm</div>
-                    </td>
-                    <td>×</td>
-                    <td>{(RoundSigFig((resultsMW / 1000), 2)) * 1000} g/mol</td>
-                    <td>×</td>
-                    <td>{resultsDF}</td>
-                </tr>
-                <tr>
-                    <td></td>
-                    <td>=</td>
-                    <td style={{ color: "blue", textAlign: "left", fontWeight: "bold" }}>
-                        {(results === "missing") ? "Error: Missing input" :
-                            (results === "invalid") ? "Error: Invalid input" :
-                                (results === "errorEC") ? "Error: Invalid extinction coefficient value" :
-                                    (results === "errorPL") ? "Error: Invalid pathlength value" :
-                                        (results === "error") ? "Error: Unable to calculate concentration" : results + " mg/mL"}
-                    </td>
-                </tr>
-            </>
-        )
-    }
-
-    const renderRatioResults = () => {
-        return (
-            <>
-                <tr>
-                    <td>Concentration</td>
-                    <td>=</td>
-                    <td>
-                        <div style={{
-                            paddingBottom: "3px",
-                            marginBottom: "3px",
-                            borderBottom: "solid 1px black"
-                        }}>Absorbance at λ<sub>max</sub></div>
-                        <div>Pathlength</div>
-                    </td>
-                    <td>×</td>
-                    <td>Conversion Factor</td>
-                    <td>×</td>
-                    <td>Dilution Factor</td>
-                </tr>
-                <tr>
-                    <td></td>
-                    <td>=</td>
-                    <td>
-                        <div style={{
-                            paddingBottom: "3px",
-                            marginBottom: "3px",
-                            borderBottom: "solid 1px black"
-                        }}>{resultsABS}</div>
-                        <div>{resultsPL} cm</div>
-                    </td>
-                    <td>×</td>
-                    <td>{resultsCF} &micro;g/mol</td>
-                    <td>×</td>
-                    <td>{resultsDF}</td>
-                </tr>
-                <tr>
-                    <td></td>
-                    <td>=</td>
-                    <td style={{ color: "blue", textAlign: "left", fontWeight: "bold" }}>
-                        {(results === "missing") ? "Error: Missing input" :
-                            (results === "invalid") ? "Error: Invalid input" :
-                                (results === "errorEC") ? "Error: Invalid extinction coefficient value" :
-                                    (results === "errorPL") ? "Error: Invalid pathlength value" :
-                                        (results === "error") ? "Error: Unable to calculate concentration" : <>{results} &micro;g/mL</>}
-                    </td>
-                </tr>
-            </>
-        )
-    }
-
-    const renderResults = () => {
-        return (
-            <div className="displayResults">
-                <h3>Results</h3>
-                <table
-                    cellPadding="5px"
-                    style={{
-                        marginLeft: "-5px",
-                        textAlign: "center",
-                        whiteSpace: "nowrap"
-                    }}
-                    className="resultsTable">
-                    <tbody>
-                        {(select === "custom") ? renderEquationResults() : renderRatioResults()}
-                    </tbody>
-                </table>
-            </div>
-        )
-    }
-
     const renderReferences = () => {
         return (
             <div className="References">
@@ -574,7 +578,9 @@ const DnaRnaConcentrationCalculator = (props: { type: "DNA" | "RNA" }) => {
                     width: "100%"
                 }}>
                 {renderPageContent()}
-                {(results === null) ? "" : renderResults()}
+                {(results === null) ? "" :
+                    (background === true) ? <RenderEquationResults resultsABS={resultsABS} resultsEC={resultsEC} resultsPL={resultsPL} resultsMW={resultsMW} resultsDF={resultsDF} results={results} /> :
+                        <RenderRatioResults resultsABS={resultsABS} resultsPL={resultsPL} resultsCF={resultsCF} resultsDF={resultsDF} results={results} />}
                 {renderReferences()}
             </div>
         </>
