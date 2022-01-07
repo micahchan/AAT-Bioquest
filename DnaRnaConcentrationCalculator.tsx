@@ -266,7 +266,7 @@ const DnaRnaConcentrationCalculator = (props: { type: "DNA" | "RNA" }) => {
 
         if (select !== "custom" || sequence === "" || sequence === undefined || sequence === null) { return; }
         else { calculateNucleotideValues(); }
-    }, [sequence, select, strandType])
+    }, [sequence, select, strandType, props.type])
 
     const handleKeyPress = (event: any) => {
         let string;
