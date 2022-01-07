@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { ChangeEventHandler, KeyboardEventHandler, MouseEventHandler, useState } from 'react';
 import { RoundSigFig } from './Rounding';
 import './RpmRcfConversionCalculator.css';
 
@@ -28,52 +28,23 @@ const RpmRcfConversionCalculator = (props: any) => {
         _rcf(value);
     }
 
-    const calcRadius = () => {
-        if (rcf !== "" && rpm !== "") {
-            const radius = rcf / (1.12 * (Math.pow((rpm / 1000), 2)));
-            return radius;
-        }
-        else { return 0; }
-    }
-
-    const calcRPM = () => {
-        if (rcf !== "" && radius !== "") {
-            const RPM = 1000 * Math.sqrt(rcf / (1.12 * radius));
-            return RPM;
-        }
-        else { return 0; }
-    }
-
-    const calcRCF = () => {
-        if (radius !== "" && rpm !== "") {
-            const RCF = 1.12 * radius * ((rpm / 1000) ** 2);
-            return RCF;
-        }
-        else { return 0; }
-    }
-
     const handleCalculateButtonClick = (event: any) => {
         let counter = 0;
         if (radius !== "") { counter++; }
         if (rpm !== "") { counter++; }
         if (rcf !== "") { counter++; }
 
-        console.log(radius);
-        console.log(rpm);
-        console.log(rcf);
-        console.log(counter);
-
         if (counter === 2) {
             if (radius === "") {
-                let value = RoundSigFig(calcRadius(), 4);
+                let value = RoundSigFig(calcRadius(rcf, rpm), 4);
                 _radius(value);
             }
             else if (rpm === "") {
-                let value = RoundSigFig(calcRPM(), 4);
+                let value = RoundSigFig(calcRPM(rcf, radius), 4);
                 _rpm(value);
             }
             else if (rcf === "") {
-                let value = RoundSigFig(calcRCF(), 4);
+                let value = RoundSigFig(calcRCF(radius, rpm), 4);
                 _rcf(value);
             }
         }
@@ -82,6 +53,56 @@ const RpmRcfConversionCalculator = (props: any) => {
         }
     }
 
+    return (
+        <>
+            <RenderPageContent
+                radius={radius}
+                rpm={rpm}
+                rcf={rcf}
+                preventMinus={preventMinus}
+                handleInputRadius={handleInputRadius}
+                handleInputRPM={handleInputRPM}
+                handleInputRCF={handleInputRCF}
+                handleCalculateButtonClick={handleCalculateButtonClick}
+            />
+        </>
+    )
+}
+
+const calcRadius = (rcf: number | "", rpm: number | "") => {
+    if (rcf !== "" && rpm !== "") {
+        const radius = rcf / (1.12 * (Math.pow((rpm / 1000), 2)));
+        return radius;
+    }
+    else { return 0; }
+}
+
+const calcRPM = (rcf: number | "", radius: number | "") => {
+    if (rcf !== "" && radius !== "") {
+        const RPM = 1000 * Math.sqrt(rcf / (1.12 * radius));
+        return RPM;
+    }
+    else { return 0; }
+}
+
+const calcRCF = (radius: number | "", rpm: number | "") => {
+    if (radius !== "" && rpm !== "") {
+        const RCF = 1.12 * radius * ((rpm / 1000) ** 2);
+        return RCF;
+    }
+    else { return 0; }
+}
+
+const RenderPageContent = (props: {
+    radius: number | "",
+    rpm: number | "",
+    rcf: number | "",
+    preventMinus: KeyboardEventHandler,
+    handleInputRadius: ChangeEventHandler,
+    handleInputRPM: ChangeEventHandler,
+    handleInputRCF: ChangeEventHandler,
+    handleCalculateButtonClick: MouseEventHandler
+}) => {
     return (
         <>
             <h1 className="sp_pageHeader">RPM ⟺ RCF Conversion Calculator</h1>
@@ -104,11 +125,11 @@ const RpmRcfConversionCalculator = (props: any) => {
                                 <td></td>
                                 <td>
                                     <input
-                                        value={radius}
+                                        value={props.radius}
                                         type="number"
                                         min="0"
-                                        onKeyPress={preventMinus}
-                                        onChange={handleInputRadius}
+                                        onKeyPress={props.preventMinus}
+                                        onChange={props.handleInputRadius}
                                     />
                                 </td>
                                 <td></td>
@@ -119,11 +140,11 @@ const RpmRcfConversionCalculator = (props: any) => {
                                 <td style={{ borderBottom: "1px solid #afafaf" }}>(</td>
                                 <td style={{ borderBottom: "1px solid #afafaf" }}>
                                     <input
-                                        value={rpm}
+                                        value={props.rpm}
                                         type="number"
                                         min="0"
-                                        onKeyPress={preventMinus}
-                                        onChange={handleInputRPM}
+                                        onKeyPress={props.preventMinus}
+                                        onChange={props.handleInputRPM}
                                     />
                                 </td>
                                 <td style={{ borderBottom: "1px solid #afafaf" }}>/ 1000 )<sup>2</sup></td>
@@ -134,11 +155,11 @@ const RpmRcfConversionCalculator = (props: any) => {
                                 <td></td>
                                 <td>
                                     <input
-                                        value={rcf}
+                                        value={props.rcf}
                                         type="number"
                                         min="0"
-                                        onKeyPress={preventMinus}
-                                        onChange={handleInputRCF} />
+                                        onKeyPress={props.preventMinus}
+                                        onChange={props.handleInputRCF} />
                                 </td>
                                 <td></td>
                             </tr>
@@ -150,27 +171,35 @@ const RpmRcfConversionCalculator = (props: any) => {
                     <input
                         type="button"
                         className="cButton"
-                        onClick={handleCalculateButtonClick}
+                        onClick={props.handleCalculateButtonClick}
                         value="Calculate"
                     />
                 </div>
                 <br /><br />
                 <hr />
-                <span className="subSectionHeader">References</span>
-                <table className="ref_table">
-                    <tbody>
-                        <tr><td colSpan={2} className="ref_table_bold">This online tool may be cited as follows</td></tr>
-                        <tr>
-                            <td className="ref_table_bold">MLA</td>
-                            <td>"Quest Calculate™ RPM ⟺ RCF Conversion Calculator."<i>AAT Bioquest, Inc</i>, 07 Jan. 2022, https://www.aatbio.com/tools/quick-calculator/rpmrcf-formula-calculator.</td>
-                        </tr>
-                        <tr>
-                            <td className="ref_table_bold">APA</td>
-                            <td>AAT Bioquest, Inc. (2022, January 07). <i>Quest Calculate™ RPM ⟺ RCF Conversion Calculator."</i>. Retrieved from https://www.aatbio.com/tools/quick-calculator/rpmrcf-formula-calculator</td>
-                        </tr>
-                    </tbody>
-                </table>
+                <RenderReferences />
             </div>
+        </>
+    )
+}
+
+const RenderReferences = () => {
+    return (
+        <>
+            <span className="subSectionHeader">References</span>
+            <table className="ref_table">
+                <tbody>
+                    <tr><td colSpan={2} className="ref_table_bold">This online tool may be cited as follows</td></tr>
+                    <tr>
+                        <td className="ref_table_bold">MLA</td>
+                        <td>"Quest Calculate™ RPM ⟺ RCF Conversion Calculator."<i>AAT Bioquest, Inc</i>, 07 Jan. 2022, https://www.aatbio.com/tools/quick-calculator/rpmrcf-formula-calculator.</td>
+                    </tr>
+                    <tr>
+                        <td className="ref_table_bold">APA</td>
+                        <td>AAT Bioquest, Inc. (2022, January 07). <i>Quest Calculate™ RPM ⟺ RCF Conversion Calculator."</i>. Retrieved from https://www.aatbio.com/tools/quick-calculator/rpmrcf-formula-calculator</td>
+                    </tr>
+                </tbody>
+            </table>
         </>
     )
 }
