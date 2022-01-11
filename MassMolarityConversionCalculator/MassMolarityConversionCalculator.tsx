@@ -1,97 +1,54 @@
-import React, { ChangeEventHandler, KeyboardEventHandler, MouseEventHandler, useState } from 'react';
+import React, { KeyboardEventHandler, useState } from 'react';
 import { RoundSigFig } from './Rounding';
 import './MassMolarityConversionCalculator.css';
 
 const concDropMenu = [
-    { name: "M", value: "1", tag: "conc" },
-    { name: "mM", value: "0.001", tag: "conc" },
-    { name: "µM", value: "0.000001", tag: "conc" }
+    { name: "M", value: "1", tag: "unitConcentration" },
+    { name: "mM", value: "0.001", tag: "unitConcentration" },
+    { name: "µM", value: "0.000001", tag: "unitConcentration" }
 ]
 
 const volDropMenu = [
-    { name: "L", value: "1", tag: "vol" },
-    { name: "mL", value: "0.001", tag: "vol" },
-    { name: "µL", value: "0.000001", tag: "vol" }
+    { name: "L", value: "1", tag: "unitVolume" },
+    { name: "mL", value: "0.001", tag: "unitVolume" },
+    { name: "µL", value: "0.000001", tag: "unitVolume" }
 ]
 
 const massDropMenu = [
-    { name: "g", value: "1", tag: "mass" },
-    { name: "mg", value: "0.001", tag: "mass" },
-    { name: "µg", value: "0.000001", tag: "mass" }
+    { name: "g", value: "1", tag: "unitMass" },
+    { name: "mg", value: "0.001", tag: "unitMass" },
+    { name: "µg", value: "0.000001", tag: "unitMass" }
 ]
 
+const initial: any = {
+    concentration: "",
+    volume: "",
+    mw: "",
+    mass: "",
+    unitConcentration: "1",
+    unitVolume: "1",
+    unitMass: "1"
+}
+
+type MassMolarityDataType = {
+    concentration: number | "",
+    volume: number | "",
+    mw: number | "",
+    mass: number | "",
+    unitConcentration: string,
+    unitVolume: string,
+    unitMass: string
+}
+
 const MassMolarityConversionCalculator = (props: any) => {
-    const [concentration, _concentration] = useState<number | "">("");
-    const [volume, _volume] = useState<number | "">("");
-    const [mw, _mw] = useState<number | "">("");
-    const [mass, _mass] = useState<number | "">("");
-    const [unitConcentration, _unitConcentration] = useState<string>("1");
-    const [unitVolume, _unitVolume] = useState<string>("1");
-    const [unitMass, _unitMass] = useState<string>("1");
 
-    const preventMinus = (event: any) => {
-        if (event.code === 'Minus' || event.code === 'NumpadSubtract') {
-            event.preventDefault();
-        }
-    }
-
-    const handleInput = (event: any) => {
-        const value = event.target.value;
-        const tag = event.target.getAttribute('data-key');
-        if (tag === "conc") { _concentration(value); }
-        else if (tag === "vol") { _volume(value); }
-        else if (tag === "mw") { _mw(value); }
-        else if (tag === "mass") { _mass(value); }
-    }
-
-    const handleDropDownMenu = (event: any) => {
-        const state = event.target.value;
-        const tag = event.target[event.target.selectedIndex].getAttribute('data-tag');
-        if (tag === "conc") { _unitConcentration(state); }
-        else if (tag === "vol") { _unitVolume(state); }
-        else if (tag === "mass") { _unitMass(state); }
-    }
-
-    const handleCalculateButtonClick = (event: any) => {
-        let counter = 0;
-        if (concentration !== "") { counter++; }
-        if (volume !== "") { counter++; }
-        if (mw !== "") { counter++; }
-        if (mass !== "") { counter++; }
-
-        if (counter === 3) {
-            if (concentration === "") {
-                const value = RoundSigFig(calcConcentration(volume, mw, mass, unitConcentration, unitVolume, unitMass), 4);
-                _concentration(value);
-            }
-            else if (volume === "") {
-                const value = RoundSigFig(calcVolume(concentration, mw, mass, unitConcentration, unitVolume, unitMass), 4);
-                _volume(value);
-            }
-            else if (mw === "") {
-                const value = RoundSigFig(calcMW(concentration, volume, mass, unitConcentration, unitVolume, unitMass), 4);
-                _mw(value);
-            }
-            else if (mass === "") {
-                const value = RoundSigFig(calcMass(concentration, volume, mw, unitConcentration, unitVolume, unitMass), 4);
-                _mass(value);
-            }
-        }
-        else {
-            alert("Enter exactly three numbers to calculate the fourth.");
-        }
-    }
+    const [data, _data] = useState<MassMolarityDataType>(initial);
 
     return (
         <>
             <RenderPageContent
-                concentration={concentration}
-                volume={volume}
-                mw={mw}
-                mass={mass}
-                unitConcentration={unitConcentration}
-                unitVolume={unitVolume}
-                unitMass={unitMass}
+                data={data}
+                _data={_data}
                 preventMinus={preventMinus}
                 handleInput={handleInput}
                 handleDropDownMenu={handleDropDownMenu}
@@ -99,6 +56,66 @@ const MassMolarityConversionCalculator = (props: any) => {
             />
         </>
     )
+}
+
+const preventMinus = (event: any) => {
+    if (event.code === 'Minus' || event.code === 'NumpadSubtract') {
+        event.preventDefault();
+    }
+}
+
+const handleInput = (event: any, _data: Function) => {
+    const value = event.target.value;
+    const tag = event.target.getAttribute('data-tag');
+    _data((data: MassMolarityDataType) => {
+        return { ...data, [tag]: value }
+    })
+}
+
+const handleDropDownMenu = (event: any, _data: Function) => {
+    const value = event.target.value;
+    const tag = event.target[event.target.selectedIndex].getAttribute('data-tag');
+    _data((data: MassMolarityDataType) => {
+        return { ...data, [tag]: value }
+    })
+}
+
+const handleCalculateButtonClick = (event: any, _data: Function, data: MassMolarityDataType) => {
+    let counter = 0;
+    if (data.concentration !== "") { counter++; }
+    if (data.volume !== "") { counter++; }
+    if (data.mw !== "") { counter++; }
+    if (data.mass !== "") { counter++; }
+
+    if (counter === 3) {
+        if (data.concentration === "") {
+            const value = RoundSigFig(calcConcentration(data.volume, data.mw, data.mass, data.unitConcentration, data.unitVolume, data.unitMass), 4);
+            _data((data: MassMolarityDataType) => {
+                return { ...data, concentration: value }
+            });
+        }
+        else if (data.volume === "") {
+            const value = RoundSigFig(calcVolume(data.concentration, data.mw, data.mass, data.unitConcentration, data.unitVolume, data.unitMass), 4);
+            _data((data: MassMolarityDataType) => {
+                return { ...data, volume: value }
+            });
+        }
+        else if (data.mw === "") {
+            const value = RoundSigFig(calcMW(data.concentration, data.volume, data.mass, data.unitConcentration, data.unitVolume, data.unitMass), 4);
+            _data((data: MassMolarityDataType) => {
+                return { ...data, mw: value }
+            });
+        }
+        else if (data.mass === "") {
+            const value = RoundSigFig(calcMass(data.concentration, data.volume, data.mw, data.unitConcentration, data.unitVolume, data.unitMass), 4);
+            _data((data: MassMolarityDataType) => {
+                return { ...data, mass: value }
+            });
+        }
+    }
+    else {
+        alert("Enter exactly three numbers to calculate the fourth.");
+    }
 }
 
 const calcConcentration = (volume: number | "", mw: number | "", mass: number | "",
@@ -138,17 +155,12 @@ const calcMass = (concentration: number | "", volume: number | "", mw: number | 
 }
 
 const RenderPageContent = (props: {
-    concentration: number | "",
-    volume: number | "",
-    mw: number | "",
-    mass: number | ""
-    unitConcentration: string,
-    unitVolume: string,
-    unitMass: string,
+    data: MassMolarityDataType,
+    _data: Function,
     preventMinus: KeyboardEventHandler,
-    handleInput: ChangeEventHandler,
-    handleDropDownMenu: ChangeEventHandler,
-    handleCalculateButtonClick: MouseEventHandler
+    handleInput: Function,
+    handleDropDownMenu: Function,
+    handleCalculateButtonClick: Function
 }) => {
     return (
         <>
@@ -165,16 +177,19 @@ const RenderPageContent = (props: {
                                 <td>
                                     <input
                                         style={{ width: '70%' }}
-                                        value={props.concentration}
-                                        data-key="conc"
+                                        value={props.data.concentration}
+                                        data-tag="concentration"
                                         type="number"
                                         min="0"
                                         onKeyPress={props.preventMinus}
-                                        onChange={props.handleInput}
+                                        onChange={(event: any) => { handleInput(event, props._data) }}
                                     />
                                 </td>
                                 <td>
-                                    <select value={props.unitConcentration} onChange={props.handleDropDownMenu}>
+                                    <select
+                                        value={props.data.unitConcentration}
+                                        onChange={(event: any) => { handleDropDownMenu(event, props._data) }}
+                                    >
                                         {
                                             concDropMenu.map((option, index) => {
                                                 return <option value={option.value} data-tag={option.tag}>{option.name}</option>
@@ -189,16 +204,19 @@ const RenderPageContent = (props: {
                                 <td>
                                     <input
                                         style={{ width: '70%' }}
-                                        value={props.volume}
-                                        data-key="vol"
+                                        value={props.data.volume}
+                                        data-tag="volume"
                                         type="number"
                                         min="0"
                                         onKeyPress={props.preventMinus}
-                                        onChange={props.handleInput}
+                                        onChange={(event: any) => { handleInput(event, props._data) }}
                                     />
                                 </td>
                                 <td>
-                                    <select value={props.unitVolume} onChange={props.handleDropDownMenu}>
+                                    <select
+                                        value={props.data.unitVolume}
+                                        onChange={(event: any) => { handleDropDownMenu(event, props._data) }}
+                                    >
                                         {
                                             volDropMenu.map((option, index) => {
                                                 return <option value={option.value} data-tag={option.tag}>{option.name}</option>
@@ -213,12 +231,12 @@ const RenderPageContent = (props: {
                                 <td style={{ borderBottom: "1px solid #AFAFAF" }}>
                                     <input
                                         style={{ width: '70%' }}
-                                        value={props.mw}
-                                        data-key="mw"
+                                        value={props.data.mw}
+                                        data-tag="mw"
                                         type="number"
                                         min="0"
                                         onKeyPress={props.preventMinus}
-                                        onChange={props.handleInput}
+                                        onChange={(event: any) => { handleInput(event, props._data) }}
                                     />
                                 </td>
                                 <td style={{ borderBottom: "1px solid #AFAFAF" }}></td>
@@ -229,16 +247,19 @@ const RenderPageContent = (props: {
                                 <td>
                                     <input
                                         style={{ width: '70%' }}
-                                        value={props.mass}
-                                        data-key="mass"
+                                        value={props.data.mass}
+                                        data-tag="mass"
                                         type="number"
                                         min="0"
                                         onKeyPress={props.preventMinus}
-                                        onChange={props.handleInput}
+                                        onChange={(event: any) => { handleInput(event, props._data) }}
                                     />
                                 </td>
                                 <td>
-                                    <select value={props.unitMass} onChange={props.handleDropDownMenu}>
+                                    <select
+                                        value={props.data.unitMass}
+                                        onChange={(event: any) => { handleDropDownMenu(event, props._data) }}
+                                    >
                                         {
                                             massDropMenu.map((option, index) => {
                                                 return <option value={option.value} data-tag={option.tag}>{option.name}</option>
@@ -255,7 +276,7 @@ const RenderPageContent = (props: {
                     <input
                         type="button"
                         className="cButton"
-                        onClick={props.handleCalculateButtonClick}
+                        onClick={(event: any) => { handleCalculateButtonClick(event, props._data, props.data) }}
                         value="Calculate"
                     />
                 </div>
