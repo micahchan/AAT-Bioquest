@@ -1,0 +1,89 @@
+.sp_pageHeader {
+    font-family: 'Open sans', sans-serif;
+    font-size: 24px;
+    padding: 0;
+    margin: 0;
+    text-decoration: none;
+    color: #333;
+    font-weight: 600;
+    display: inline-block;
+    margin-bottom: 18px;
+}
+
+.tool_standard_container {
+    width: 100%;
+    margin: 0 auto;
+    font-family: 'Open sans', sans-serif;
+    font-size: 13px;
+    line-height: 200%;
+    color: #222;
+}
+
+.sub_desc {
+    display: block;
+    text-align: left;
+    font-family: 'Open sans', sans-serif;
+    font-size: 13px;
+    line-height: 150%;
+    box-sizing: border-box;
+}
+
+.subSectionHeader {
+    font-size: 18px;
+    font-weight: 600;
+    color: #4E4E4E;
+    text-align: left;
+    display: block;
+    margin-bottom: 18px;
+}
+
+.molarity table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: auto;
+    white-space: nowrap;
+}
+
+.molarity table td {
+    border-top: solid 1px #AFAFAF;
+    border-bottom: solid 1px #AFAFAF;
+    padding: 10px;
+}
+
+.molarity table thead {
+    border-bottom: solid 2px #333;
+    border-top: solid 2px #333;
+}
+
+.molarity input, .molarity select {
+    border: solid 1px #333;
+    padding: 5px;
+    box-sizing: border-box;
+}
+
+.molarity input[disable] {
+    background-color: #CCC;
+}
+
+.molarity .solution_description {
+    padding: 10px;
+    margin-bottom: 2em;
+    font-size: 14px;
+}
+
+.molarity .solution_description input {
+    width: 50px;
+    margin: 0 10px;
+    color: red;
+    font-weight: bold;
+}
+
+.ref_table td {
+    padding-right: 10px;
+    vertical-align: top;
+    font-size: 13px;
+}
+
+.ref_table_bold {color: #555; font-weight: 600;}
+.ref_fine{font-size: 11px;}
+.ref_bold{font-weight: 600;}
