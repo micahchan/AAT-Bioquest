@@ -74,51 +74,83 @@ const MolarityMolCalculator = (props: any) => {
         })
     }, [])
 
-    useEffect(() => {
-        for (let i = 0, imax = data.compounds.length; i < imax; i++) {
-            let value: number | "";
-            if (data.compounds[i].mw === "" || data.compounds[i].mass === "") {
-                value = "";
+    /** 
+     * First attempt at useEffects, combined into a singular useEffect below.
+     * 
+        useEffect(() => {
+            for (let i = 0, imax = data.compounds.length; i < imax; i++) {
+                let value: number | "";
+                if (data.compounds[i].mw === "" || data.compounds[i].mass === "") {
+                    value = "";
+                }
+                else {
+                    value = calculateMoles(data.compounds[i].mass, data.unitMass, data.compounds[i].mw);
+                }
+                _data((data) => {
+                    data.compounds[i].moles = value;
+                    return { ...data }
+                })
+                console.log("The Moles after hook is: " + data.compounds[i].moles);
             }
-            else {
-                value = calculateMoles(data.compounds[i].mass, data.unitMass, data.compounds[i].mw);
+        }, [data.unitMass, data.compounds])
+    
+        useEffect(() => {
+            for (let i = 0, imax = data.compounds.length; i < imax; i++) {
+                let value: number | "";
+                if (data.volume === "" || data.compounds[i].moles === "") {
+                    value = "";
+                }
+                else {
+                    value = calculateMolarity(data.compounds[i].moles, data.unitVolume, data.volume, data.unitMolarity);
+                }
+                _data((data) => {
+                    data.compounds[i].molarity = value;
+                    return { ...data }
+                })
+                console.log("The Molarity after hook is: " + data.compounds[i].molarity);
             }
-            _data((data) => {
-                data.compounds[i].moles = value;
-                return { ...data }
-            })
-        }
-    }, [data.unitMass, data.compounds])
+        }, [data.compounds, data.volume, data.unitVolume, data.unitMolarity])
+    */
 
     useEffect(() => {
-        for (let i = 0, imax = data.compounds.length; i < imax; i++) {
-            let value: number | "";
-            if (data.volume === "" || data.compounds[i].moles === "") {
-                value = "";
+        _data((data) => {
+            for (let i = 0, imax = data.compounds.length; i < imax; i++) {
+                let valueMoles: number | "";
+                let valueMolarity: number | "";
+                if (data.compounds[i].mw === "" || data.compounds[i].mass === "") {
+                    valueMoles = "";
+                }
+                else {
+                    valueMoles = calculateMoles(data.compounds[i].mass, data.unitMass, data.compounds[i].mw);
+                }
+                if (data.volume === "" || valueMoles === "") {
+                    valueMolarity = "";
+                }
+                else {
+                    valueMolarity = calculateMolarity(valueMoles, data.unitVolume, data.volume, data.unitMolarity);
+                }
+                data.compounds[i].moles = valueMoles;
+                data.compounds[i].molarity = valueMolarity;
+                console.log("The Moles after calc is: " + valueMoles);
+                console.log("The Molarity after calc is: " + valueMolarity);
             }
-            else {
-                value = calculateMolarity(data.compounds[i].moles, data.unitVolume, data.volume, data.unitMolarity);
+            return { ...data, compounds: [...data.compounds] }
+        })
+    }, [data.unitMass, data.volume, data.unitVolume, data.unitMolarity])
+    /*UseEffect for adding a row when last row has finished calculations.
+        useEffect(() => {
+            const lastEntry = data.compounds[data.compounds.length - 1];
+            if (lastEntry.moles !== "" || lastEntry.molarity !== "") {
+                const w: Array<compoundsType> = [...data.compounds];
+                const newCompound = { ...compounds }
+                w.push(newCompound)
+                _data((data) => {
+                    data.compounds = w;
+                    return { ...data, compounds: [...data.compounds] }
+                })
             }
-            _data((data) => {
-                data.compounds[i].molarity = value;
-                return { ...data }
-            })
-        }
-    }, [data.compounds, data.volume, data.unitVolume, data.unitMolarity])
-
-    useEffect(() => {
-        const lastEntry = data.compounds[data.compounds.length - 1];
-        if (lastEntry.moles !== "" || lastEntry.molarity !== "") {
-            const w: Array<compoundsType> = [...data.compounds];
-            const newCompound = { ...compounds }
-            w.push(newCompound)
-            _data((data) => {
-                data.compounds = w;
-                return { ...data }
-            })
-        }
-    }, [data.compounds])
-
+        }, [data.compounds])
+    */
     return (
         <>
             <RenderPageContent
@@ -152,9 +184,26 @@ const handleInput = (ev: any, _data: React.Dispatch<React.SetStateAction<Molarit
 
 /**
  * Notes: should be a change effect. input debouncing 250ms timeout.
- */
+ * 
+ * 
+const debounce = (func: Function, wait: number) => {
+    let timeout: any;
+
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+};
+ * 
+ 
+
 const handleName = (ev: any, _data: React.Dispatch<React.SetStateAction<MolarityMolDataType>>, data: MolarityMolDataType) => {
-    const index = ev.target.getAttribute('data-attribute');
+    let index = ev.target.getAttribute('data-attribute');
     fetch(`https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${data.compounds[index].name}/property/MolecularWeight,MolecularFormula,IUPACName/json`)
         .then(response => {
             if (!response.ok) {
@@ -182,23 +231,8 @@ const handleName = (ev: any, _data: React.Dispatch<React.SetStateAction<Molarity
             })
         })
 }
-
-/*
-const debounce = (func: Function, wait: number) => {
-    let timeout: any;
-
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-};
 */
-const handleTableInput = (ev: any, _data: React.Dispatch<React.SetStateAction<MolarityMolDataType>>) => {
+const handleTableInput = (ev: any, _data: React.Dispatch<React.SetStateAction<MolarityMolDataType>>, data: MolarityMolDataType) => {
     const tag = ev.target.getAttribute('data-tag');
     const value = ev.target.value;
     const index = ev.target.getAttribute('data-attribute')
@@ -207,6 +241,7 @@ const handleTableInput = (ev: any, _data: React.Dispatch<React.SetStateAction<Mo
         data.compounds[index][tag] = value;
         return { ...data, compounds: [...data.compounds] }
     })
+    console.log("The current value of data.compounds[" + index + "][" + tag + "] is: " + value);
 }
 
 const handleDropDownMenu = (ev: any, _data: React.Dispatch<React.SetStateAction<MolarityMolDataType>>) => {
@@ -225,9 +260,9 @@ const calculateMoles = (mass: number | "", unitMass: number, mw: number | "") =>
     else { return 0; }
 }
 
-const calculateMolarity = (moles: number | "", volume: number | "", unitVolume: number, unitMolarity: number) => {
-    if (moles !== "" && volume !== "") {
-        const molarity = RoundSigFig((moles / (volume * unitVolume * unitMolarity)), 3);
+const calculateMolarity = (valueMoles: number | "", volume: number | "", unitVolume: number, unitMolarity: number) => {
+    if (valueMoles !== "" && volume !== "") {
+        const molarity = RoundSigFig((valueMoles / (volume * unitVolume * unitMolarity)), 3);
         return molarity;
     }
     else { return 0; }
@@ -317,8 +352,8 @@ const RenderPageContent = (props: {
                                                 data-tag="name"
                                                 data-attribute={index}
                                                 onChange={(event: any) => {
-                                                    handleName(event, _data, data);
-                                                    handleTableInput(event, _data)
+                                                    handleTableInput(event, _data, data);
+                                                    //handleName(event, _data, data)
                                                 }} /></td >
                                             <td>
                                                 {(data.compounds[index].name === "") ? "-" :
@@ -330,14 +365,14 @@ const RenderPageContent = (props: {
                                                 value={props.mw}
                                                 data-tag="mw"
                                                 data-attribute={index}
-                                                onChange={(event: any) => { handleTableInput(event, _data) }}
+                                                onChange={(event: any) => { handleTableInput(event, _data, data) }}
                                             /></td>
                                             <td><input
                                                 type="number"
                                                 value={props.mass}
                                                 data-tag="mass"
                                                 data-attribute={index}
-                                                onChange={(event: any) => { handleTableInput(event, _data) }}
+                                                onChange={(event: any) => { handleTableInput(event, _data, data) }}
                                             /></td>
                                             <td><input
                                                 type="number"
@@ -388,3 +423,15 @@ const RenderReferences = () => {
 }
 
 export default MolarityMolCalculator;
+
+/**Flowchart of Process
+ * -grab unit values
+ * -set mw   
+ * -set mass =>calculate moles & calculate molarity
+ * 
+ * 
+ * -another row
+ * -set mw
+ * -set mass =>calculate moles & molarity
+ * 
+ */
