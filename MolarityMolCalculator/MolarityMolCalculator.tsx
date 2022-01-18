@@ -8,10 +8,14 @@ type compoundsType = {
     molecularFormula: string | "",
     mw: number | "",
     mass: number | "",
-    moles: number | "",
-    molarity: number | "",
     cid: number | "",
     valid: boolean | ""
+}
+
+type compoundCalcType = {
+    [key: string]: string | number | boolean;
+    moles: number | "",
+    molarity: number | ""
 }
 
 const compounds: compoundsType = {
@@ -19,10 +23,12 @@ const compounds: compoundsType = {
     molecularFormula: "",
     mw: "",
     mass: "",
-    moles: "",
-    molarity: "",
     cid: "",
     valid: ""
+}
+const compoundCalc: compoundCalcType = {
+    moles: "",
+    molarity: ""
 }
 
 type MolarityMolDataType = {
@@ -30,7 +36,8 @@ type MolarityMolDataType = {
     unitVolume: number,
     unitMass: number,
     unitMolarity: number,
-    compounds: Array<compoundsType>
+    compounds: Array<compoundsType>,
+    compoundCalc: Array<compoundCalcType>
 }
 
 const initial: MolarityMolDataType = {
@@ -38,7 +45,8 @@ const initial: MolarityMolDataType = {
     unitVolume: 1,
     unitMass: 1,
     unitMolarity: 1,
-    compounds: []
+    compounds: [],
+    compoundCalc: []
 }
 
 const volDropMenu = [
@@ -58,18 +66,24 @@ const molarityDropMenu = [
     { name: "µM", value: .000001, tag: "unitMolarity" }
 ]
 
+let timer: NodeJS.Timeout;
+
 const MolarityMolCalculator = (props: any) => {
 
     const [data, _data] = useState<MolarityMolDataType>(initial);
 
     useEffect(() => {
         const w: Array<compoundsType> = [];
+        const x: Array<compoundCalcType> = [];
         for (let i = 0; i < 3; i++) {
             const c = { ...compounds }
+            const d = { ...compoundCalc }
             w.push(c);
+            x.push(d);
         }
         _data((data) => {
             data.compounds = w;
+            data.compoundCalc = x;
             return { ...data }
         })
     }, [])
@@ -129,28 +143,32 @@ const MolarityMolCalculator = (props: any) => {
                 else {
                     valueMolarity = calculateMolarity(valueMoles, data.unitVolume, data.volume, data.unitMolarity);
                 }
-                data.compounds[i].moles = valueMoles;
-                data.compounds[i].molarity = valueMolarity;
-                console.log("The Moles after calc is: " + valueMoles);
-                console.log("The Molarity after calc is: " + valueMolarity);
+                data.compoundCalc[i].moles = valueMoles;
+                data.compoundCalc[i].molarity = valueMolarity;
             }
-            return { ...data, compounds: [...data.compounds] }
+            return { ...data, compoundCalc: [...data.compoundCalc] }
         })
-    }, [data.unitMass, data.volume, data.unitVolume, data.unitMolarity])
+    }, [data.unitMass, data.volume, data.unitVolume, data.unitMolarity, data.compounds])
+
     /*UseEffect for adding a row when last row has finished calculations.
-        useEffect(() => {
-            const lastEntry = data.compounds[data.compounds.length - 1];
-            if (lastEntry.moles !== "" || lastEntry.molarity !== "") {
-                const w: Array<compoundsType> = [...data.compounds];
-                const newCompound = { ...compounds }
-                w.push(newCompound)
-                _data((data) => {
-                    data.compounds = w;
-                    return { ...data, compounds: [...data.compounds] }
-                })
-            }
-        }, [data.compounds])
     */
+    useEffect(() => {
+        const lastEntry = data.compoundCalc[data.compoundCalc.length - 1];
+        if (lastEntry.moles !== "" || lastEntry.molarity !== "") {
+            const w: Array<compoundsType> = [...data.compounds];
+            const x: Array<compoundCalcType> = [...data.compoundCalc];
+            const newCompoundW = { ...compounds }
+            const newCompoundX = { ...compoundCalc }
+            w.push(newCompoundW);
+            x.push(newCompoundX);
+            _data((data) => {
+                data.compounds = w;
+                data.compoundCalc = x;
+                return { ...data }
+            })
+        }
+    }, [data.compoundCalc, data.compounds])
+
     return (
         <>
             <RenderPageContent
@@ -182,29 +200,10 @@ const handleInput = (ev: any, _data: React.Dispatch<React.SetStateAction<Molarit
     })
 }
 
-/**
- * Notes: should be a change effect. input debouncing 250ms timeout.
- * 
- * 
-const debounce = (func: Function, wait: number) => {
-    let timeout: any;
-
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-};
- * 
- 
-
 const handleName = (ev: any, _data: React.Dispatch<React.SetStateAction<MolarityMolDataType>>, data: MolarityMolDataType) => {
     let index = ev.target.getAttribute('data-attribute');
-    fetch(`https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${data.compounds[index].name}/property/MolecularWeight,MolecularFormula,IUPACName/json`)
+    let value = ev.target.value;
+    fetch(`https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${value}/property/MolecularWeight,MolecularFormula,IUPACName/json`)
         .then(response => {
             if (!response.ok) {
                 _data((data) => {
@@ -231,7 +230,43 @@ const handleName = (ev: any, _data: React.Dispatch<React.SetStateAction<Molarity
             })
         })
 }
+
+/**
+ * Notes: should be a change effect. input debouncing 250ms timeout.
+ * 
+ *
+ *  
+const debounce = (func: Function, wait: number) => {
+    let timeout: any;
+
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+};
+
+const debounce = (fn: any, wait: number, ev: any, _data: React.Dispatch<React.SetStateAction<MolarityMolDataType>>, data: MolarityMolDataType) => {
+    console.log("Debounce has gotten here");
+    let timer: NodeJS.Timeout;
+    return function () {
+        clearTimeout(timer);
+        console.log("Debounce has reset itself");
+        timer = setTimeout(() => fn(ev, _data, data), wait);
+    };
+}
 */
+
+const debounce = (ev: any, _data: React.Dispatch<React.SetStateAction<MolarityMolDataType>>, data: MolarityMolDataType) => {
+    if (timer) { clearTimeout(timer); }
+    timer = setTimeout(() => handleName(ev, _data, data), 500);
+}
+
+
 const handleTableInput = (ev: any, _data: React.Dispatch<React.SetStateAction<MolarityMolDataType>>, data: MolarityMolDataType) => {
     const tag = ev.target.getAttribute('data-tag');
     const value = ev.target.value;
@@ -242,6 +277,9 @@ const handleTableInput = (ev: any, _data: React.Dispatch<React.SetStateAction<Mo
         return { ...data, compounds: [...data.compounds] }
     })
     console.log("The current value of data.compounds[" + index + "][" + tag + "] is: " + value);
+    if (tag === "name") {
+        debounce(ev, _data, data);
+    }
 }
 
 const handleDropDownMenu = (ev: any, _data: React.Dispatch<React.SetStateAction<MolarityMolDataType>>) => {
@@ -352,8 +390,7 @@ const RenderPageContent = (props: {
                                                 data-tag="name"
                                                 data-attribute={index}
                                                 onChange={(event: any) => {
-                                                    handleTableInput(event, _data, data);
-                                                    //handleName(event, _data, data)
+                                                    handleTableInput(event, _data, data)
                                                 }} /></td >
                                             <td>
                                                 {(data.compounds[index].name === "") ? "-" :
@@ -376,14 +413,14 @@ const RenderPageContent = (props: {
                                             /></td>
                                             <td><input
                                                 type="number"
-                                                value={props.moles}
+                                                value={data.compoundCalc[index].moles}
                                                 data-tag="moles"
                                                 data-attribute={index}
                                                 disabled
                                             /></td>
                                             <td><input
                                                 type="number"
-                                                value={props.molarity}
+                                                value={data.compoundCalc[index].molarity}
                                                 data-tag="molarity"
                                                 data-attribute={index}
                                                 disabled
@@ -395,6 +432,7 @@ const RenderPageContent = (props: {
                         </tbody>
                     </table>
                 </div>
+                <br /><br /><hr />
                 <RenderReferences />
             </div>
         </>
@@ -423,15 +461,3 @@ const RenderReferences = () => {
 }
 
 export default MolarityMolCalculator;
-
-/**Flowchart of Process
- * -grab unit values
- * -set mw   
- * -set mass =>calculate moles & calculate molarity
- * 
- * 
- * -another row
- * -set mw
- * -set mass =>calculate moles & molarity
- * 
- */

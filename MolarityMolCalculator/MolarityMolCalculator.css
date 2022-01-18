@@ -40,8 +40,7 @@
 .molarity table {
     width: 100%;
     border-collapse: collapse;
-    table-layout: auto;
-    white-space: nowrap;
+    table-layout: fixed;
 }
 
 .molarity table td {
@@ -61,7 +60,7 @@
     box-sizing: border-box;
 }
 
-.molarity input[disable] {
+.molarity input:disabled {
     background-color: #CCC;
 }
 
