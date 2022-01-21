@@ -88,44 +88,6 @@ const MolarityMolCalculator = (props: any) => {
         })
     }, [])
 
-    /** 
-     * First attempt at useEffects, combined into a singular useEffect below.
-     * 
-        useEffect(() => {
-            for (let i = 0, imax = data.compounds.length; i < imax; i++) {
-                let value: number | "";
-                if (data.compounds[i].mw === "" || data.compounds[i].mass === "") {
-                    value = "";
-                }
-                else {
-                    value = calculateMoles(data.compounds[i].mass, data.unitMass, data.compounds[i].mw);
-                }
-                _data((data) => {
-                    data.compounds[i].moles = value;
-                    return { ...data }
-                })
-                console.log("The Moles after hook is: " + data.compounds[i].moles);
-            }
-        }, [data.unitMass, data.compounds])
-    
-        useEffect(() => {
-            for (let i = 0, imax = data.compounds.length; i < imax; i++) {
-                let value: number | "";
-                if (data.volume === "" || data.compounds[i].moles === "") {
-                    value = "";
-                }
-                else {
-                    value = calculateMolarity(data.compounds[i].moles, data.unitVolume, data.volume, data.unitMolarity);
-                }
-                _data((data) => {
-                    data.compounds[i].molarity = value;
-                    return { ...data }
-                })
-                console.log("The Molarity after hook is: " + data.compounds[i].molarity);
-            }
-        }, [data.compounds, data.volume, data.unitVolume, data.unitMolarity])
-    */
-
     useEffect(() => {
         _data((data) => {
             for (let i = 0, imax = data.compounds.length; i < imax; i++) {
@@ -229,37 +191,11 @@ const handleName = (ev: any, _data: React.Dispatch<React.SetStateAction<Molarity
                 return { ...data, compounds: [...data.compounds] }
             })
         })
+    /**
+     * would need some sort of error catching added here
+     * .then(throw error).catch(e => {} )
+     */
 }
-
-/**
- * Notes: should be a change effect. input debouncing 250ms timeout.
- * 
- *
- *  
-const debounce = (func: Function, wait: number) => {
-    let timeout: any;
-
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-};
-
-const debounce = (fn: any, wait: number, ev: any, _data: React.Dispatch<React.SetStateAction<MolarityMolDataType>>, data: MolarityMolDataType) => {
-    console.log("Debounce has gotten here");
-    let timer: NodeJS.Timeout;
-    return function () {
-        clearTimeout(timer);
-        console.log("Debounce has reset itself");
-        timer = setTimeout(() => fn(ev, _data, data), wait);
-    };
-}
-*/
 
 const debounce = (ev: any, _data: React.Dispatch<React.SetStateAction<MolarityMolDataType>>, data: MolarityMolDataType) => {
     if (timer) { clearTimeout(timer); }
