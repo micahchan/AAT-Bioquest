@@ -1,4 +1,4 @@
-import React, { useState, ChangeEvent, useEffect } from 'react';
+import React, { ChangeEvent, useEffect, useState } from 'react';
 
 type s_type = {
     [key: string]: any,
@@ -9,8 +9,8 @@ type s_type = {
     source: string | '',
     description: string | '',
     notes: string | '',
-    compArr: Array<compType>
-}
+    compArr: Array<compType>;
+};
 
 type v_type = {
     [key: string]: any,
@@ -25,42 +25,42 @@ type v_type = {
     compMW: number | '',
     compConjName: string | '',
     compConjMW: number | '',
-    phArr: Array<phType>
-}
+    phArr: Array<phType>;
+};
 
 type phType = {
     [key: string]: any,
     amount: number | '',
     conjAmount: number | '',
-    pH: number | ''
-}
+    pH: number | '';
+};
 
 type compType = {
     [key: string]: any,
     name: string | '',
     units: number | '',
     initialMolarity: number | '',
-    mw: number | ''
-}
+    mw: number | '';
+};
 
 interface initialType {
     [key: string]: any,
     sData: s_type,
-    vData: v_type
+    vData: v_type;
 }
 
 const phSet: phType = {
     amount: '',
     conjAmount: '',
     pH: ''
-}
+};
 
 const compSet: compType = {
     name: '',
     units: '',
     initialMolarity: '',
     mw: ''
-}
+};
 
 const v_initial: v_type = {
     name: '',
@@ -75,7 +75,7 @@ const v_initial: v_type = {
     compConjName: '',
     compConjMW: '',
     phArr: [{ ...phSet }]
-}
+};
 
 const s_initial: s_type = {
     name: '',
@@ -86,7 +86,7 @@ const s_initial: s_type = {
     description: '',
     notes: '',
     compArr: [{ ...compSet }]
-}
+};
 
 const initial: initialType = {
     sData: {
@@ -114,7 +114,7 @@ const initial: initialType = {
         phArr: [{ ...phSet }]
     }
 
-}
+};
 
 const BufferPage = () => {
     const [bufferType, _bufferType] = useState<string>('single');
@@ -126,17 +126,17 @@ const BufferPage = () => {
             const w = { ...v_initial };
             _data((data) => {
                 data.vData = w;
-                return { ...data }
-            })
+                return { ...data };
+            });
         }
         if (bufferType === 'variable') {
-            const w = { ...s_initial }
+            const w = { ...s_initial };
             _data((data) => {
                 data.sData = w;
                 return { ...data };
-            })
+            });
         }
-    }, [bufferType])
+    }, [bufferType]);
 
     return (
         <>
@@ -147,8 +147,8 @@ const BufferPage = () => {
                 data={data}
             />
         </>
-    )
-}
+    );
+};
 
 /**
  * Function handling radio button input determining state of bufferType
@@ -158,8 +158,7 @@ const BufferPage = () => {
 const handleRadioInput = (ev: ChangeEvent<HTMLInputElement>, _bufferType: React.Dispatch<React.SetStateAction<string>>) => {
     const state = ev.target.value;
     _bufferType(state);
-    //console.log("The bufferType is: " + state);
-}
+};
 
 /**
  * Function handling any of the component table value changes
@@ -174,35 +173,33 @@ const handleTableInput = (ev: any, bufferType: string, _data: React.Dispatch<Rea
     if (bufferType === 'single') {
         _data((data) => {
             data.sData.compArr[index][id] = value;
-            return { ...data, compArr: [...data.sData.compArr] }
-        })
+            return { ...data, compArr: [...data.sData.compArr] };
+        });
     }
     else if (bufferType === 'variable') {
         _data((data) => {
             data.vData.phArr[index][id] = value;
-            return { ...data, phArr: [...data.vData.phArr] }
-        })
+            return { ...data, phArr: [...data.vData.phArr] };
+        });
     }
-    //console.log("data." + (bufferType === 'single' ? "sData" : "vData") + "array[" + index + "][" + id + "] is: " + value);
-}
+};
 
 const handleInput = (ev: any, bufferType: string, _data: React.Dispatch<React.SetStateAction<typeof initial>>) => {
     const value = ev.target.value;
     const id = ev.target.id;
     if (bufferType === 'single') {
         _data((data) => {
-            return { ...data, sData: { ...data.sData, [id]: value } }
-        })
+            return { ...data, sData: { ...data.sData, [id]: value } };
+        });
     }
     else if (bufferType === 'variable') {
         _data((data) => {
-            return { ...data, vData: { ...data.vData, [id]: value } }
-        })
+            return { ...data, vData: { ...data.vData, [id]: value } };
+        });
     }
-    //console.log("Value is: [" + id + "][" + value + "]");
-}
+};
 
-const CustomInput = (props: { rowLabel: string, id: string, type: string, placeholder: string, bufferType: string, _data: React.Dispatch<React.SetStateAction<typeof initial>>, data: typeof initial }) => {
+const CustomInput = (props: { rowLabel: string, id: string, type: string, placeholder: string, bufferType: string, _data: React.Dispatch<React.SetStateAction<typeof initial>>, data: typeof initial; }) => {
     const { rowLabel, id, type, placeholder, bufferType, _data, data } = props;
     return (
         <>
@@ -212,13 +209,13 @@ const CustomInput = (props: { rowLabel: string, id: string, type: string, placeh
                 type={type}
                 value={(bufferType === 'single') ? data.sData[id] : data.vData[id]}
                 placeholder={placeholder}
-                onChange={(ev: any) => { handleInput(ev, bufferType, _data) }}
+                onChange={(ev: any) => { handleInput(ev, bufferType, _data); }}
             /></td>
         </>
-    )
-}
+    );
+};
 
-const CustomInputPH = (props: { rowLabel: string, id: string, type: string, placeholder: string, bufferType: string, _data: React.Dispatch<React.SetStateAction<typeof initial>>, data: typeof initial }) => {
+const CustomInputPH = (props: { rowLabel: string, id: string, type: string, placeholder: string, bufferType: string, _data: React.Dispatch<React.SetStateAction<typeof initial>>, data: typeof initial; }) => {
     const { rowLabel, id, type, placeholder, bufferType, _data, data } = props;
     return (
         <>
@@ -228,21 +225,21 @@ const CustomInputPH = (props: { rowLabel: string, id: string, type: string, plac
                 type={type}
                 value={data.vData[id]}
                 placeholder={placeholder}
-                onChange={(ev: any) => { handleInput(ev, bufferType, _data) }}
+                onChange={(ev: any) => { handleInput(ev, bufferType, _data); }}
             /></td>
             <td><input
                 id='phMax'
                 type={type}
                 value={data.vData.phMax}
                 placeholder='max pH of buffer'
-                onChange={(ev: any) => { handleInput(ev, bufferType, _data) }}
+                onChange={(ev: any) => { handleInput(ev, bufferType, _data); }}
             /></td>
         </>
-    )
-}
+    );
+};
 
-const CustomTextArea = (props: { rowLabel: string, id: string, placeholder: string, bufferType: string, _data: React.Dispatch<React.SetStateAction<typeof initial>>, data: typeof initial }) => {
-    const { id, placeholder, bufferType, _data, data } = props
+const CustomTextArea = (props: { rowLabel: string, id: string, placeholder: string, bufferType: string, _data: React.Dispatch<React.SetStateAction<typeof initial>>, data: typeof initial; }) => {
+    const { id, placeholder, bufferType, _data, data } = props;
     return (
         <>
             <td><textarea
@@ -250,16 +247,16 @@ const CustomTextArea = (props: { rowLabel: string, id: string, placeholder: stri
                 value={(bufferType === 'single') ? data.sData[id] : data.vData[id]}
                 placeholder={placeholder}
                 style={{ width: '100%', minHeight: '200px', resize: 'none' }}
-                onChange={(ev: any) => { handleInput(ev, bufferType, _data) }} /></td>
+                onChange={(ev: any) => { handleInput(ev, bufferType, _data); }} /></td>
             <td><textarea
                 id='notes'
                 value={(bufferType === 'single') ? data.sData.notes : data.vData.notes}
                 placeholder="Final notes (e.g. 'Adjust solution to desired pH (typicalling pH ≈ 7.0).')"
                 style={{ width: '100%', minHeight: '200px', resize: 'none' }}
-                onChange={(ev: any) => { handleInput(ev, bufferType, _data) }} /></td>
+                onChange={(ev: any) => { handleInput(ev, bufferType, _data); }} /></td>
         </>
-    )
-}
+    );
+};
 
 const rows = (ev: any, bufferType: string, data: typeof initial, _data: React.Dispatch<React.SetStateAction<typeof initial>>) => {
     const evId = ev.target.id;
@@ -275,8 +272,8 @@ const rows = (ev: any, bufferType: string, data: typeof initial, _data: React.Di
         }
         _data((data) => {
             data.sData.compArr = newRows;
-            return { ...data }
-        })
+            return { ...data };
+        });
     }
     else if (bufferType === 'variable') {
         const newRows = [...data.vData.phArr];
@@ -289,15 +286,15 @@ const rows = (ev: any, bufferType: string, data: typeof initial, _data: React.Di
         }
         _data((data) => {
             data.vData.phArr = newRows;
-            return { ...data }
-        })
+            return { ...data };
+        });
     }
-}
+};
 
 const CustomTableS = (props: {
     bufferType: string,
     data: typeof initial,
-    _data: React.Dispatch<React.SetStateAction<typeof initial>>
+    _data: React.Dispatch<React.SetStateAction<typeof initial>>;
 }) => {
     const { bufferType, data, _data } = props;
     return (
@@ -325,47 +322,47 @@ const CustomTableS = (props: {
                                         value={props.name}
                                         id='name'
                                         data-attribute={index}
-                                        onChange={(ev: any) => { handleTableInput(ev, bufferType, _data) }}
+                                        onChange={(ev: any) => { handleTableInput(ev, bufferType, _data); }}
                                     /></td>
                                     <td><input
                                         type='number'
                                         value={props.units}
                                         id='units'
                                         data-attribute={index}
-                                        onChange={(ev: any) => { handleTableInput(ev, bufferType, _data) }}
+                                        onChange={(ev: any) => { handleTableInput(ev, bufferType, _data); }}
                                     /></td>
                                     <td><input
                                         type='number'
                                         value={props.initialMolarity}
                                         id='initialMolarity'
                                         data-attribute={index}
-                                        onChange={(ev: any) => { handleTableInput(ev, bufferType, _data) }}
+                                        onChange={(ev: any) => { handleTableInput(ev, bufferType, _data); }}
                                     /></td>
                                     <td><input
                                         type='number'
                                         value={props.mw}
                                         id='mw'
                                         data-attribute={index}
-                                        onChange={(ev: any) => { handleTableInput(ev, bufferType, _data) }}
+                                        onChange={(ev: any) => { handleTableInput(ev, bufferType, _data); }}
                                     /></td>
                                     <td><button
                                         data-attribute={index}
                                         id='deleteRow'
-                                        onClick={(ev: any) => { rows(ev, bufferType, data, _data) }}>&times;</button></td>
+                                        onClick={(ev: any) => { rows(ev, bufferType, data, _data); }}>&times;</button></td>
                                 </tr>
-                            )
+                            );
                         })
                     }
                 </tbody>
             </table>
         </>
-    )
-}
+    );
+};
 
 const CustomTableV = (props: {
     bufferType: string,
     data: typeof initial,
-    _data: React.Dispatch<React.SetStateAction<typeof initial>>
+    _data: React.Dispatch<React.SetStateAction<typeof initial>>;
 }) => {
     const { bufferType, data, _data } = props;
     return (
@@ -386,13 +383,13 @@ const CustomTableV = (props: {
                             placeholder='Acid/Base'
                             value={data.vData.compName}
                             id='compName'
-                            onChange={(ev: any) => { handleInput(ev, bufferType, _data) }}
+                            onChange={(ev: any) => { handleInput(ev, bufferType, _data); }}
                         /></td>
                         <td><input
                             type='number'
                             value={data.vData.compMW}
                             id='compMW'
-                            onChange={(ev: any) => { handleInput(ev, bufferType, _data) }}
+                            onChange={(ev: any) => { handleInput(ev, bufferType, _data); }}
                         /></td>
                     </tr>
                     <tr>
@@ -401,13 +398,13 @@ const CustomTableV = (props: {
                             placeholder='Acid/Base'
                             value={data.vData.compConjName}
                             id='compConjName'
-                            onChange={(ev: any) => { handleInput(ev, bufferType, _data) }}
+                            onChange={(ev: any) => { handleInput(ev, bufferType, _data); }}
                         /></td>
                         <td><input
                             type='number'
                             value={data.vData.compConjMW}
                             id='compConjMW'
-                            onChange={(ev: any) => { handleInput(ev, bufferType, _data) }}
+                            onChange={(ev: any) => { handleInput(ev, bufferType, _data); }}
                         /></td>
                     </tr>
                 </tbody>
@@ -443,35 +440,35 @@ const CustomTableV = (props: {
                                         value={props.amount}
                                         id='amount'
                                         data-attribute={index}
-                                        onChange={(ev: any) => { handleTableInput(ev, bufferType, _data) }}
+                                        onChange={(ev: any) => { handleTableInput(ev, bufferType, _data); }}
                                     /></td>
                                     <td><input
                                         type='number'
                                         value={props.conjAmount}
                                         id='conjAmount'
                                         data-attribute={index}
-                                        onChange={(ev: any) => { handleTableInput(ev, bufferType, _data) }}
+                                        onChange={(ev: any) => { handleTableInput(ev, bufferType, _data); }}
                                     /></td>
                                     <td><input
                                         type='number'
                                         value={props.pH}
                                         id='pH'
                                         data-attribute={index}
-                                        onChange={(ev: any) => { handleTableInput(ev, bufferType, _data) }}
+                                        onChange={(ev: any) => { handleTableInput(ev, bufferType, _data); }}
                                     /></td>
                                     <td><button
                                         id='deleteRow'
                                         data-attribute={index}
-                                        onClick={(ev: any) => { rows(ev, bufferType, data, _data) }}>&times;</button></td>
+                                        onClick={(ev: any) => { rows(ev, bufferType, data, _data); }}>&times;</button></td>
                                 </tr>
-                            )
+                            );
                         })
                     }
                 </tbody>
             </table>
         </>
-    )
-}
+    );
+};
 
 const submitBuffer = (bufferType: string, data: typeof initial) => {
 
@@ -524,17 +521,17 @@ success: function (response: any) {
             }
         }
         */
-}
+};
 
 type row = {
     rowLabel?: string,
     id: string,
     type?: string,
     placeholder?: string,
-    rowComponent: Function
-}
+    rowComponent: Function;
+};
 
-const layout: { single: Array<row>, variable: Array<row> } = {
+const layout: { single: Array<row>, variable: Array<row>; } = {
     single: [
         {
             rowLabel: 'Buffer name:',
@@ -613,12 +610,12 @@ const layout: { single: Array<row>, variable: Array<row> } = {
             rowComponent: CustomTextArea
         }
     ]
-}
+};
 const RenderPageContent = (props: {
     _bufferType: React.Dispatch<React.SetStateAction<string>>,
     bufferType: string,
     _data: React.Dispatch<React.SetStateAction<typeof initial>>,
-    data: typeof initial
+    data: typeof initial;
 }) => {
     const { _bufferType, bufferType, _data, data } = props;
     return (
@@ -627,14 +624,14 @@ const RenderPageContent = (props: {
                 <input
                     type='radio'
                     style={{ margin: "0 5px 0 15px" }}
-                    onClick={(ev: any) => { handleRadioInput(ev, _bufferType) }}
+                    onClick={(ev: any) => { handleRadioInput(ev, _bufferType); }}
                     value='single'
                     name='buffer'
                     defaultChecked />Single pH Buffer
                 <input
                     type='radio'
                     style={{ margin: "0 5px 0 15px" }}
-                    onClick={(ev: any) => { handleRadioInput(ev, _bufferType) }}
+                    onClick={(ev: any) => { handleRadioInput(ev, _bufferType); }}
                     value='variable'
                     name='buffer' />Variable pH Buffer
 
@@ -649,14 +646,14 @@ const RenderPageContent = (props: {
                 />
             </div>
         </>
-    )
-}
+    );
+};
 
 const RenderInputs = (props: {
     layout: any,
     bufferType: string,
     _data: React.Dispatch<React.SetStateAction<typeof initial>>,
-    data: typeof initial
+    data: typeof initial;
 }) => {
     const { layout, bufferType, _data, data } = props;
     return (
@@ -678,7 +675,7 @@ const RenderInputs = (props: {
                                     />
                                 }
                             </tr>
-                        )
+                        );
                     })}
                 </tbody>
             </table>
@@ -689,7 +686,7 @@ const RenderInputs = (props: {
                 type='button'
                 value='ADD ROW'
                 id='addRow'
-                onClick={(ev: any) => { rows(ev, bufferType, data, _data) }}
+                onClick={(ev: any) => { rows(ev, bufferType, data, _data); }}
             />
             <br />
             <input
@@ -698,7 +695,7 @@ const RenderInputs = (props: {
                 onClick={() => submitBuffer(bufferType, data)}
             />
         </>
-    )
-}
+    );
+};
 
 export default BufferPage;
