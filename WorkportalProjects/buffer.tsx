@@ -153,11 +153,6 @@ const BufferPage = () => {
     );
 };
 
-/**
- * Function handling radio button input determining state of bufferType
- * @param ev
- * @param _bufferType
- */
 const handleRadioInput = (ev: ChangeEvent<HTMLInputElement>, _bufferType: React.Dispatch<React.SetStateAction<string>>) => {
     const state = ev.target.value;
     _bufferType(state);
@@ -459,7 +454,7 @@ const CustomTableV = (props: {
 };
 
 const sendData = (data: typeof initial) => {
-    //Ajax request sends component information stored in new_component variable to node
+
     //console.log(JSON.stringify(data, null, 4));
 
     s.ajax({
