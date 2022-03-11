@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { fetchMeta } from '../../lib/meta';
 import Server from '../../lib/Server';
+import { Routing } from '../../types/Routing';
 
 const s = new Server();
 
@@ -59,6 +61,17 @@ const comp: compType = {
     name: ''
 };
 
+type variable_data_type = {
+    [key: string]: any,
+    phMin: number | '',
+    phMax: number | '',
+};
+
+const variable_data_set: variable_data_type = {
+    phMin: '',
+    phMax: ''
+};
+
 type s_type = {
     pH: number | '',
     molarity: number | '',
@@ -78,22 +91,20 @@ const sData: s_type = {
 };
 
 type v_type = {
-    phMin: number | '',
-    phMax: number | '',
     solvent: string | '',
     source: string | '',
     description: string | '',
     notes: string | '',
+    variable_data: any;
     phArr: Array<any>;
 };
 
 const vData: v_type = {
-    phMin: '',
-    phMax: '',
     solvent: '',
     source: '',
     description: '',
     notes: '',
+    variable_data: {},
     phArr: []
 };
 
@@ -123,7 +134,6 @@ const pullCompoundsData = (ev: any, _data: React.Dispatch<React.SetStateAction<i
         .replace(/[^a-z0-9]/gu, '-')
         .replace(/(?:-){2,}/gu, '-')
         .trim();
-    //console.log("The value of compoundID is: " + compoundID);
     s.ajax({
         url: '/api/webcontent/buffer/get-compounds-info',
         type: 'POST',
@@ -131,7 +141,6 @@ const pullCompoundsData = (ev: any, _data: React.Dispatch<React.SetStateAction<i
         dataType: 'application/json',
         success: (response: any) => {
             if (response.code === 200) {
-                //console.log("The return value is: " + response.data[0].mw);
                 _data((old) => {
                     old.compounds[index].mw = response.data[0].mw;
                     return { ...old };
@@ -195,6 +204,7 @@ const clearInputs = (bufferType: string, _data: React.Dispatch<React.SetStateAct
         const initialphArr: any = [];
         const set = { ...phSet };
         initialphArr.push(set);
+        const initialVarObj = { ...variable_data_set };
         const initialCompoundArr: any = [];
         const compoundSet = { ...comp };
         const compoundSet2 = { ...comp };
@@ -205,12 +215,14 @@ const clearInputs = (bufferType: string, _data: React.Dispatch<React.SetStateAct
             old.attributes = initialAttrObj;
             old.attributes.phArr = initialphArr;
             old.compounds = initialCompoundArr;
+            old.attributes.variable_data = initialVarObj;
             return {
                 ...initialObj,
                 components: [...old.components],
                 attributes: {
                     ...old.attributes,
-                    phArr: [...old.attributes.phArr]
+                    phArr: [...old.attributes.phArr],
+                    variable_data: { ...old.attributes.variable_data }
                 },
                 compounds: [...old.compounds]
             };
@@ -237,6 +249,18 @@ const handleInput = (ev: any, _data: React.Dispatch<React.SetStateAction<typeof 
             return {
                 ...old,
                 attributes: { ...old.attributes }
+            };
+        });
+    }
+    else if (key === 'variable_data') {
+        _data((old) => {
+            old.attributes.variable_data[inputId] = inputValue;
+            return {
+                ...old,
+                attributes: {
+                    ...old.attributes,
+                    variable_data: { ...old.attributes.variable_data }
+                }
             };
         });
     }
@@ -341,6 +365,28 @@ const CustomInput = (props: { rowLabel: string, id: string, type: string, placeh
                 type={type}
                 data-key='attributes'
                 value={data.attributes[id]}
+                placeholder={placeholder}
+                onChange={(ev: any) => { handleInput(ev, _data); }}
+            /></td>
+        </>
+    );
+};
+
+const InputPH = (props: { rowLabel: string, id: string, type: string, placeholder: string, _data: React.Dispatch<React.SetStateAction<typeof initial>>, data: typeof initial; }) => {
+    const { rowLabel, id, type, placeholder, _data, data } = props;
+    return (
+        <>
+            <td style={{
+                fontWeight: 'bold',
+                width: '250px',
+                verticalAlign: 'top'
+            }}>{rowLabel}</td>
+            <td><input
+                style={{ width: '250px' }}
+                id={id}
+                type={type}
+                data-key='variable_data'
+                value={data.attributes.variable_data?.[id]}
                 placeholder={placeholder}
                 onChange={(ev: any) => { handleInput(ev, _data); }}
             /></td>
@@ -621,7 +667,6 @@ const containsEmptyValues = (data: any): boolean => {
 const submitBuffer = (data: typeof initial) => {
     if (containsEmptyValues(data) === true || data.compounds.length === 0) { alert("Missing valid input in all fields"); }
     else if (containsEmptyValues(data) === false) {
-        //console.log("Data before AJAX submission: " + JSON.stringify(data, null, 4));
         //Ajax request sends component information stored in new_component variable to node
         s.ajax({
             url: '/api/webcontent/buffer/submit-buffer',
@@ -750,17 +795,18 @@ const layout: { [key: string]: Array<row>; } = {
             rowComponent: TitleInput
         },
         {
-            rowLabel: 'Buffer pH:',
+            rowLabel: 'Buffer pH min:',
             id: 'phMin',
             type: 'number',
             placeholder: 'min pH of buffer',
-            rowComponent: CustomInput
+            rowComponent: InputPH
         },
         {
+            rowLabel: 'Buffer pH max:',
             id: 'phMax',
             type: 'number',
             placeholder: 'max pH of buffer',
-            rowComponent: CustomInput
+            rowComponent: InputPH
         },
         {
             rowLabel: 'Buffer solvent:',
@@ -822,7 +868,7 @@ const handleBufferListClick = (ev: any, _data: React.Dispatch<React.SetStateActi
                         return { ...old };
                     });
                 }
-                else if (response.data[0].attributes.phMin) {
+                else if (!response.data[0].attributes.pH) {
                     _data((old) => {
                         old.bufferType = 'variable';
                         return { ...old };
@@ -844,7 +890,7 @@ const handleBufferListClick = (ev: any, _data: React.Dispatch<React.SetStateActi
                         };
                     });
                 }
-                else if (response.data[0].attributes.phMin) {
+                else if (!response.data[0].attributes.pH) {
                     _dbData((old) => {
                         old.bufferType = 'variable';
                         old.title = title;
@@ -852,13 +898,15 @@ const handleBufferListClick = (ev: any, _data: React.Dispatch<React.SetStateActi
                         old.components = response.data[0].components;
                         old.attributes = response.data[0].attributes;
                         old.attributes.phArr = response.data[0].attributes.phArr;
+                        old.attributes.variable_data = response.data[0].attributes.variable_data;
                         old.compounds = response.data[0].compounds;
                         return {
                             ...old,
                             components: [...old.components],
                             attributes: {
                                 ...old.attributes,
-                                phArr: [...old.attributes.phArr]
+                                phArr: [...old.attributes.phArr],
+                                variable_data: { ...old.attributes.variable_data }
                             },
                             compounds: [...old.compounds]
                         };
@@ -911,7 +959,6 @@ const BufferDropdown = (props: { _data: React.Dispatch<React.SetStateAction<type
             dataType: 'application/json',
             success: (response: any) => {
                 if (response.code === 200) {
-                    //console.log("The buffer db list is: " + JSON.stringify(response.data, null, 4));
                     _databaseList(response.data);
                 }
             }
@@ -1080,13 +1127,15 @@ const BufferPage = () => {
                 old.components = dbData.components;
                 old.attributes = dbData.attributes;
                 old.attributes.phArr = dbData.attributes.phArr;
+                old.attributes.variable_data = dbData.attributes.variable_data;
                 old.compounds = dbData.compounds;
                 return {
                     ...old,
                     components: [...old.components],
                     attributes: {
                         ...old.attributes,
-                        phArr: [...old.attributes.phArr]
+                        phArr: [...old.attributes.phArr],
+                        variable_data: { ...old.attributes.variable_data }
                     },
                     compounds: [...old.compounds]
                 };
@@ -1108,3 +1157,8 @@ const BufferPage = () => {
 };
 
 export default BufferPage;
+
+export const getStaticProps = async (context: Routing.Context) => {
+    const meta = await fetchMeta(__filename, context);
+    return ({ props: { meta: meta } });
+};
