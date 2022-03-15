@@ -5,6 +5,30 @@ import { Routing } from '../../types/Routing';
 
 const s = new Server();
 
+const bufferCategories = [
+    { name: "" },
+    { name: "Physiological Buffer" },
+    { name: "pH Buffering" },
+    { name: "Sample Preparation" },
+    { name: "BioAssays" },
+    { name: "Misc" },
+    { name: "Cell/Culture/Growth Media" },
+    { name: "Gel Electrophoresis" }
+];
+
+type notesType = {
+    [key: string]: any,
+    final: string | "",
+    special: null,
+    additional: null,
+};
+
+const notesSet: notesType = {
+    final: "",
+    special: null,
+    additional: null
+};
+
 type phType = {
     [key: string]: any,
     amount: number | '',
@@ -63,47 +87,51 @@ const comp: compType = {
 
 type variable_data_type = {
     [key: string]: any,
-    phMin: number | '',
-    phMax: number | '',
+    min_ph: number | '',
+    max_ph: number | '',
 };
 
 const variable_data_set: variable_data_type = {
-    phMin: '',
-    phMax: ''
+    min_ph: '',
+    max_ph: ''
 };
 
 type s_type = {
     pH: number | '',
     molarity: number | '',
-    solvent: string | '',
+    base_solvent: string | '',
     source: string | '',
     description: string | '',
-    notes: string | '',
+    type: string | '',
+    notes: any,
 };
 
 const sData: s_type = {
     pH: '',
     molarity: '',
-    solvent: '',
+    base_solvent: '',
     source: '',
     description: '',
-    notes: '',
+    type: '',
+    notes: { ...notesSet },
 };
 
 type v_type = {
-    solvent: string | '',
+    base_solvent: string | '',
     source: string | '',
     description: string | '',
-    notes: string | '',
+    type: string | '',
+    notes: any,
     variable_data: any;
     phArr: Array<any>;
 };
 
 const vData: v_type = {
-    solvent: '',
+    base_solvent: '',
     source: '',
     description: '',
-    notes: '',
+    type: '',
+    notes: { ...notesSet },
     variable_data: {},
     phArr: []
 };
@@ -127,6 +155,7 @@ const initial: initialType = {
     compounds: [{ ...comp }]
 };
 
+//Function which pulls the molecular weight from the database for an entered compound cID
 const pullCompoundsData = (ev: any, _data: React.Dispatch<React.SetStateAction<initialType>>) => {
     const index = ev.target.getAttribute('data-index');
     const inputValue = ev.target.value;
@@ -171,17 +200,22 @@ const clearInputs = (bufferType: string, _data: React.Dispatch<React.SetStateAct
         const compSet = { ...s_compSet };
         initialCompArr.push(compSet);
         const initialAttrObj = { ...sData };
+        const initialNotes = { ...notesSet };
         const initialCompoundArr: any = [];
         const compoundSet = { ...comp };
         initialCompoundArr.push(compoundSet);
         _data((old) => {
             old.components = initialCompArr;
             old.attributes = initialAttrObj;
+            old.attributes.notes = initialNotes;
             old.compounds = initialCompoundArr;
             return {
                 ...initialObj,
                 components: [...old.components],
-                attributes: { ...old.attributes },
+                attributes: {
+                    ...old.attributes,
+                    notes: { ...old.attributes.notes }
+                },
                 compounds: [...old.compounds]
             };
         });
@@ -201,6 +235,7 @@ const clearInputs = (bufferType: string, _data: React.Dispatch<React.SetStateAct
         initialCompArr.push(compSet);
         initialCompArr.push(compSet2);
         const initialAttrObj = { ...vData };
+        const initialNotes = { ...notesSet };
         const initialphArr: any = [];
         const set = { ...phSet };
         initialphArr.push(set);
@@ -213,6 +248,7 @@ const clearInputs = (bufferType: string, _data: React.Dispatch<React.SetStateAct
         _data((old) => {
             old.components = initialCompArr;
             old.attributes = initialAttrObj;
+            old.attributes.notes = initialNotes;
             old.attributes.phArr = initialphArr;
             old.compounds = initialCompoundArr;
             old.attributes.variable_data = initialVarObj;
@@ -222,7 +258,8 @@ const clearInputs = (bufferType: string, _data: React.Dispatch<React.SetStateAct
                 attributes: {
                     ...old.attributes,
                     phArr: [...old.attributes.phArr],
-                    variable_data: { ...old.attributes.variable_data }
+                    variable_data: { ...old.attributes.variable_data },
+                    notes: { ...old.attributes.notes }
                 },
                 compounds: [...old.compounds]
             };
@@ -240,21 +277,35 @@ const handleRadioInput = (ev: any, _data: React.Dispatch<React.SetStateAction<ty
 
 const handleInput = (ev: any, _data: React.Dispatch<React.SetStateAction<typeof initial>>) => {
     const inputValue = ev.target.value;
-    const inputId = ev.target.id;
+    const inputID = ev.target.id;
     const key = ev.target.getAttribute('data-key');
     const index = ev.target.getAttribute('data-index');
     if (key === 'attributes') {
-        _data((old) => {
-            old.attributes[inputId] = inputValue;
-            return {
-                ...old,
-                attributes: { ...old.attributes }
-            };
-        });
+        if (inputID === 'notes') {
+            _data((old) => {
+                old.attributes[inputID].final = inputValue;
+                return {
+                    ...old,
+                    attributes: {
+                        ...old.attributes,
+                        notes: { ...old.attributes.notes }
+                    }
+                };
+            });
+        }
+        else {
+            _data((old) => {
+                old.attributes[inputID] = inputValue;
+                return {
+                    ...old,
+                    attributes: { ...old.attributes }
+                };
+            });
+        }
     }
     else if (key === 'variable_data') {
         _data((old) => {
-            old.attributes.variable_data[inputId] = inputValue;
+            old.attributes.variable_data[inputID] = inputValue;
             return {
                 ...old,
                 attributes: {
@@ -272,19 +323,19 @@ const handleInput = (ev: any, _data: React.Dispatch<React.SetStateAction<typeof 
         _data((old) => {
             return {
                 ...old,
-                [inputId]: inputValue,
+                [inputID]: inputValue,
                 formula_id: sanTitle
             };
         });
     }
     else if (key === 'compounds') {
-        if (inputId === 'name') {
+        if (inputID === 'name') {
             const sanCompoundTitle = inputValue.toLowerCase()
                 .replace(/[^a-z0-9]/gu, '-')
                 .replace(/(?:-){2,}/gu, '-')
                 .trim();
             _data((old) => {
-                old.compounds[index][inputId] = inputValue;
+                old.compounds[index][inputID] = inputValue;
                 old.compounds[index].cID = sanCompoundTitle;
                 old.components[index].cID = sanCompoundTitle;
                 return {
@@ -296,7 +347,7 @@ const handleInput = (ev: any, _data: React.Dispatch<React.SetStateAction<typeof 
         }
         else {
             _data((old) => {
-                old.compounds[index][inputId] = inputValue;
+                old.compounds[index][inputID] = inputValue;
                 return {
                     ...old,
                     compounds: [...old.compounds]
@@ -306,7 +357,7 @@ const handleInput = (ev: any, _data: React.Dispatch<React.SetStateAction<typeof 
     }
     else if (key === 'components') {
         _data((old) => {
-            old.components[index][inputId] = inputValue;
+            old.components[index][inputID] = inputValue;
             return {
                 ...old,
                 components: [...old.components]
@@ -315,7 +366,7 @@ const handleInput = (ev: any, _data: React.Dispatch<React.SetStateAction<typeof 
     }
     else if (key === 'phArr') {
         _data((old) => {
-            old.attributes.phArr[index][inputId] = inputValue;
+            old.attributes.phArr[index][inputID] = inputValue;
             return {
                 ...old,
                 attributes: {
@@ -325,9 +376,17 @@ const handleInput = (ev: any, _data: React.Dispatch<React.SetStateAction<typeof 
             };
         });
     }
+    else if (key === 'type') {
+        _data((old) => {
+            old.attributes[inputID] = inputValue;
+            return {
+                ...old,
+                attributes: { ...old.attributes }
+            };
+        });
+    }
 };
 
-//Display function for the title. Data entered for "Buffer name" section.
 const TitleInput = (props: { rowLabel: string, id: string, type: string, placeholder: string, _data: React.Dispatch<React.SetStateAction<typeof initial>>, data: typeof initial; }) => {
     const { rowLabel, id, type, placeholder, _data, data } = props;
     return (
@@ -372,6 +431,30 @@ const CustomInput = (props: { rowLabel: string, id: string, type: string, placeh
     );
 };
 
+const CustomSelect = (props: { id: string, data: typeof initial, _data: React.Dispatch<React.SetStateAction<typeof initial>>; }) => {
+    const { id, data, _data } = props;
+    return (
+        <>
+            <td></td>
+            <td><select
+                id={id}
+                value={data.attributes.type}
+                style={{ width: '250px' }}
+                data-key='type'
+                onChange={(ev: any) => { handleInput(ev, _data); }}
+            >
+                {
+                    bufferCategories.map((option: any, index: number) => {
+                        return <option
+                            key={index}
+                            value={option.name}>{option.name}</option>;
+                    })
+                }
+            </select></td>
+        </>
+    );
+};
+
 const InputPH = (props: { rowLabel: string, id: string, type: string, placeholder: string, _data: React.Dispatch<React.SetStateAction<typeof initial>>, data: typeof initial; }) => {
     const { rowLabel, id, type, placeholder, _data, data } = props;
     return (
@@ -394,7 +477,7 @@ const InputPH = (props: { rowLabel: string, id: string, type: string, placeholde
     );
 };
 
-const CustomTextArea = (props: { rowLabel: string, id: string, placeholder: string, _data: React.Dispatch<React.SetStateAction<typeof initial>>, data: typeof initial; }) => {
+const TextAreaDescription = (props: { rowLabel: string, id: string, placeholder: string, _data: React.Dispatch<React.SetStateAction<typeof initial>>, data: typeof initial; }) => {
     const { rowLabel, id, placeholder, _data, data } = props;
     return (
         <>
@@ -418,20 +501,44 @@ const CustomTextArea = (props: { rowLabel: string, id: string, placeholder: stri
     );
 };
 
+const TextAreaNotes = (props: { rowLabel: string, id: string, placeholder: string, _data: React.Dispatch<React.SetStateAction<typeof initial>>, data: typeof initial; }) => {
+    const { rowLabel, id, placeholder, _data, data } = props;
+    return (
+        <>
+            <td style={{
+                fontWeight: 'bold',
+                width: '250px',
+                verticalAlign: 'top'
+            }}>{rowLabel}</td>
+            <td colSpan={2}><textarea
+                id={id}
+                data-key='attributes'
+                value={data.attributes[id].final}
+                placeholder={placeholder}
+                style={{
+                    width: '500px',
+                    minHeight: '200px',
+                    resize: 'none'
+                }}
+                onChange={(ev: any) => { handleInput(ev, _data); }} /></td>
+        </>
+    );
+};
+
 //Handles any manipulation (adding or deleting) of rows for the components table.
 const rows = (ev: any, data: typeof initial, _data: React.Dispatch<React.SetStateAction<typeof initial>>) => {
-    const inputId = ev.target.id;
+    const inputID = ev.target.id;
     const index = ev.target.getAttribute('data-index');
     if (data.bufferType === 'single') {
         const newRows = [...data.components];
         const newCompRows = [...data.compounds];
-        if (inputId === 'addRow') {
+        if (inputID === 'addRow') {
             const x = { ...s_compSet };
             newRows.push(x);
             const y = { ...comp };
             newCompRows.push(y);
         }
-        else if (inputId === 'deleteRow') {
+        else if (inputID === 'deleteRow') {
             newRows.splice(index, 1);
             newCompRows.splice(index, 1);
         }
@@ -443,11 +550,11 @@ const rows = (ev: any, data: typeof initial, _data: React.Dispatch<React.SetStat
     }
     else if (data.bufferType === 'variable') {
         const newRows = [...data.attributes.phArr];
-        if (inputId === 'addRow') {
+        if (inputID === 'addRow') {
             const x = { ...phSet };
             newRows.push(x);
         }
-        else if (inputId === 'deleteRow') {
+        else if (inputID === 'deleteRow') {
             newRows.splice(index, 1);
         }
         _data((old) => {
@@ -732,6 +839,10 @@ const layout: { [key: string]: Array<row>; } = {
             rowComponent: TitleInput
         },
         {
+            id: 'type',
+            rowComponent: CustomSelect
+        },
+        {
             rowLabel: 'Buffer pH:',
             id: 'pH',
             type: 'number',
@@ -747,7 +858,7 @@ const layout: { [key: string]: Array<row>; } = {
         },
         {
             rowLabel: 'Buffer solvent:',
-            id: 'solvent',
+            id: 'base_solvent',
             type: 'text',
             placeholder: 'Solvent',
             rowComponent: CustomInput
@@ -763,13 +874,13 @@ const layout: { [key: string]: Array<row>; } = {
             rowLabel: 'Description:',
             id: 'description',
             placeholder: 'Description',
-            rowComponent: CustomTextArea
+            rowComponent: TextAreaDescription
         },
         {
             rowLabel: 'Notes:',
             id: 'notes',
             placeholder: "Final notes (e.g. 'Adjust solution to desired pH (typicalling pH ≈ 7.0).')",
-            rowComponent: CustomTextArea
+            rowComponent: TextAreaNotes
         },
         {
             id: 'componentTable',
@@ -795,22 +906,26 @@ const layout: { [key: string]: Array<row>; } = {
             rowComponent: TitleInput
         },
         {
+            id: 'type',
+            rowComponent: CustomSelect
+        },
+        {
             rowLabel: 'Buffer pH min:',
-            id: 'phMin',
+            id: 'min_ph',
             type: 'number',
             placeholder: 'min pH of buffer',
             rowComponent: InputPH
         },
         {
             rowLabel: 'Buffer pH max:',
-            id: 'phMax',
+            id: 'max_ph',
             type: 'number',
             placeholder: 'max pH of buffer',
             rowComponent: InputPH
         },
         {
             rowLabel: 'Buffer solvent:',
-            id: 'solvent',
+            id: 'base_solvent',
             type: 'text',
             placeholder: 'Solvent',
             rowComponent: CustomInput
@@ -826,13 +941,13 @@ const layout: { [key: string]: Array<row>; } = {
             rowLabel: 'Description:',
             id: 'description',
             placeholder: 'Description',
-            rowComponent: CustomTextArea
+            rowComponent: TextAreaDescription
         },
         {
             rowLabel: 'Notes:',
             id: 'notes',
             placeholder: "Final notes (e.g. 'Adjust solution to desired pH (typicalling pH ≈ 7.0).')",
-            rowComponent: CustomTextArea
+            rowComponent: TextAreaNotes
         },
         {
             id: 'componentTable',
@@ -862,51 +977,69 @@ const handleBufferListClick = (ev: any, _data: React.Dispatch<React.SetStateActi
         dataType: 'application/json',
         success: (response: any) => {
             if (response.code === 200) {
-                if (response.data[0].attributes.pH) {
+                if (!response.data[0].attributes.variable_data) {
                     _data((old) => {
                         old.bufferType = 'single';
                         return { ...old };
                     });
                 }
-                else if (!response.data[0].attributes.pH) {
+                else if (response.data[0].attributes.variable_data) {
                     _data((old) => {
                         old.bufferType = 'variable';
                         return { ...old };
                     });
                 }
-                if (response.data[0].attributes.pH) {
+
+                if (!response.data[0].attributes.variable_data) {
                     _dbData((old) => {
                         old.bufferType = 'single';
                         old.title = title;
                         old.formula_id = id;
                         old.components = response.data[0].components;
                         old.attributes = response.data[0].attributes;
-                        old.compounds = response.data[0].compounds;
-                        return {
-                            ...old,
-                            components: [...old.components],
-                            attributes: { ...old.attributes },
-                            compounds: [...old.compounds]
-                        };
-                    });
-                }
-                else if (!response.data[0].attributes.pH) {
-                    _dbData((old) => {
-                        old.bufferType = 'variable';
-                        old.title = title;
-                        old.formula_id = id;
-                        old.components = response.data[0].components;
-                        old.attributes = response.data[0].attributes;
-                        old.attributes.phArr = response.data[0].attributes.phArr;
-                        old.attributes.variable_data = response.data[0].attributes.variable_data;
+                        old.attributes.notes = response.data[0].attributes.notes;
                         old.compounds = response.data[0].compounds;
                         return {
                             ...old,
                             components: [...old.components],
                             attributes: {
                                 ...old.attributes,
+                                notes: { ...old.attributes.notes }
+                            },
+                            compounds: [...old.compounds]
+                        };
+                    });
+                }
+                else if (response.data[0].attributes.variable_data) {
+                    _dbData((old) => {
+                        old.bufferType = 'variable';
+                        old.title = title;
+                        old.formula_id = id;
+                        old.components = response.data[0].components;
+                        old.attributes = response.data[0].attributes;
+                        old.attributes.notes = response.data[0].attributes.notes;
+                        old.attributes.variable_data = response.data[0].attributes.variable_data;
+                        old.compounds = response.data[0].compounds;
+                        if (response.data[0].attributes.phArr) {
+                            old.attributes.phArr = response.data[0].attributes.phArr;
+                        }
+                        else {
+                            old.attributes.phArr = [
+                                {
+                                    amount: '',
+                                    conjAmount: '',
+                                    pH: ''
+                                }
+                            ];
+                        }
+                        return {
+                            ...old,
+                            components: [...old.components],
+                            attributes: {
+                                ...old.attributes,
                                 phArr: [...old.attributes.phArr],
-                                variable_data: { ...old.attributes.variable_data }
+                                variable_data: { ...old.attributes.variable_data },
+                                notes: { ...old.attributes.notes }
                             },
                             compounds: [...old.compounds]
                         };
@@ -917,7 +1050,6 @@ const handleBufferListClick = (ev: any, _data: React.Dispatch<React.SetStateActi
     });
 };
 
-//Display format for each buffer in the databaseList.
 const DisplayBufferList = (props: { index: number, title: string, id: string, filterTerm: any, _data: React.Dispatch<React.SetStateAction<typeof initial>>, _dbData: React.Dispatch<React.SetStateAction<typeof initial>>, _display: React.Dispatch<React.SetStateAction<boolean>>; }) => {
     const { index, title, id, filterTerm, _data, _dbData, _display } = props;
     //Filter which returns blank if there is no matches to the entered filterTerm.
@@ -946,9 +1078,8 @@ const DisplayBufferList = (props: { index: number, title: string, id: string, fi
     );
 };
 
-//Gets the list of buffers from the database and displays in a dropdown menu format.
 const BufferDropdown = (props: { _data: React.Dispatch<React.SetStateAction<typeof initial>>, _dbData: React.Dispatch<React.SetStateAction<typeof initial>>, _display: React.Dispatch<React.SetStateAction<boolean>>; }) => {
-    const [databaseList, _databaseList] = useState<initialType>();
+    const [databaseList, _databaseList] = useState([]);
     const [filterTerm, _filterTerm] = useState<string>();
     const { _data, _dbData, _display } = props;
     useEffect(() => {
@@ -1111,11 +1242,15 @@ const BufferPage = () => {
                 old.formula_id = dbData.formula_id;
                 old.components = dbData.components;
                 old.attributes = dbData.attributes;
+                old.attributes.notes = dbData.attributes.notes;
                 old.compounds = dbData.compounds;
                 return {
                     ...old,
                     components: [...old.components],
-                    attributes: { ...old.attributes },
+                    attributes: {
+                        ...old.attributes,
+                        notes: { ...old.attributes.notes }
+                    },
                     compounds: [...old.compounds]
                 };
             });
@@ -1128,6 +1263,7 @@ const BufferPage = () => {
                 old.attributes = dbData.attributes;
                 old.attributes.phArr = dbData.attributes.phArr;
                 old.attributes.variable_data = dbData.attributes.variable_data;
+                old.attributes.notes = dbData.attributes.notes;
                 old.compounds = dbData.compounds;
                 return {
                     ...old,
@@ -1135,7 +1271,8 @@ const BufferPage = () => {
                     attributes: {
                         ...old.attributes,
                         phArr: [...old.attributes.phArr],
-                        variable_data: { ...old.attributes.variable_data }
+                        variable_data: { ...old.attributes.variable_data },
+                        notes: { ...old.attributes.notes }
                     },
                     compounds: [...old.compounds]
                 };

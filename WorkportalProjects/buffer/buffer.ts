@@ -1,6 +1,6 @@
 import express from "express";
 import { RowDataPacket } from "mysql2";
-import Compound from "../../../lib/Compounds";
+import Compound from "../../../lib/compounds";
 import { WorkPortalApp } from "../../../types/Index";
 import { Res } from "../../lib/response";
 import { _db } from "../../lib/sql";
@@ -38,8 +38,6 @@ Buffer.post('/submit-buffer', async (req, res) => {
     if (req.body.attributes.phArr && req.body.attributes.phArr.length >= 2) {
         linearLeastSquares(req.body);
     }
-    console.log("The dataset about to be submittied is: " + JSON.stringify(req.body, null, 4));
-
     try {
         const sql =
             "INSERT INTO www.formula_data (formula_id, title, type, components, attributes) VALUES (?, ?, 'buffer', ?, ?) ON DUPLICATE KEY UPDATE components = ?, attributes = ?";
@@ -70,44 +68,8 @@ Buffer.post('/submit-buffer', async (req, res) => {
 
         const comp_sql = `INSERT IGNORE INTO www.compounds_depth (cID, value, depth1, depth2, depth3, depth4, depth5, hash) VALUES ${marks.join(', ')}`;
 
-        //console.log("The sql statement is: " + comp_sql);
-        //console.log("The paramsArr is:" + JSON.stringify(paramsArr, null, 4));
-
         const [comp_row] = await _db.query<Array<RowType>>(comp_sql, paramsArr);
 
-        /*
-                const comp_sql = "SELECT uID, cID, depth1 FROM www.compounds_depth WHERE depth1 IN ('mw', 'name') AND cID = ?";
-        
-                const comp_params: any = [];
-                const marks: any = [];
-                let updateCompounds: boolean = false;
-                for (let i = 0; i < req.body.compounds.length; i++) {
-                    let nameFlag: boolean = false;
-                    let mwFlag: boolean = false;
-                    let missingArr = [];
-                    const [comp_row] = await _db.query<Array<RowType>>(comp_sql, [req.body.compounds[i].cID]);
-                    for (let j = 0; comp_row && j < comp_row.length; j++) {
-                        if (comp_row[j].depth1 === "name") { nameFlag = true; }
-                        if (comp_row[j].depth1 === "mw") { mwFlag = true; }
-                    }
-                    if (!nameFlag) { missingArr.push("name"); }
-                    if (!mwFlag) { missingArr.push("mw"); }
-                    for (let k = 0; k < missingArr.length; k++) {
-                        marks.push("(?, ?, ?)");
-                        comp_params.push(req.body.compounds[i].cID);
-                        comp_params.push(missingArr[k]);
-                        comp_params.push(req.body.compounds[i][missingArr[k]]);
-                        updateCompounds = true;
-                    }
-                }
-                
-                if (updateCompounds === true) {
-                    const comp_insert_sql = `INSERT INTO www.compounds_depth (cID, depth1, value) VALUES ${marks.join(',')}`;
-                    console.log("The crafted sql statement is: " + comp_insert_sql);
-                    //comp_insert_sql += marks.join(", ");
-                    const [insert_comp_row] = await _db.query<Array<RowType>>(comp_insert_sql, comp_params);
-                }
-        */
         if (!data_row || data_row.length === 0) { throw 'Missing data'; }
 
         r.data = data_row;
@@ -153,6 +115,8 @@ Buffer.post('/get-buffer-info', async (req, res) => {
         const sql = "SELECT formula_id, components, attributes FROM www.formula_data WHERE type='buffer' AND formula_id = ?";
         const [data_row] = await _db.query<Array<RowType>>(sql, [req.body.id]);
 
+        console.log("Test of db pull, data_row is: " + JSON.stringify(data_row, null, 4));
+
         const cIDarr: any = [];
         const marks: any = [];
         if (data_row !== null) {
@@ -166,6 +130,7 @@ Buffer.post('/get-buffer-info', async (req, res) => {
         const comp_sql = `SELECT c1.cID, c1.value as mw, c2.value as name FROM www.compounds_depth as c1 INNER JOIN www.compounds_depth as c2 ON c1.cID = c2.cID WHERE c1.depth1 = 'mw' AND c2.depth1 = 'name' AND c1.cID IN (${marks.join(', ')})`;
         const [comp_row] = await _db.query<Array<RowType>>(comp_sql, cIDarr);
 
+        //Check to make sure no duplicates were pulled from the db. May be obselete with unique index from hashing.
         let compounds: any = [];
         if (comp_row !== null) {
             for (let i = 0; i < comp_row.length; i++) {
@@ -174,6 +139,7 @@ Buffer.post('/get-buffer-info', async (req, res) => {
             }
         }
 
+        //Orders the compounds to be the same as components after being pulled from the db
         let sortCompounds: any = [];
         sortCompounds = compounds.sort(function (a: any, b: any) {
             return cIDarr.indexOf(a.cID) - cIDarr.indexOf(b.cID);
