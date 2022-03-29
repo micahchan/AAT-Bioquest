@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { ChangeEvent, useEffect, useState } from 'react';
 import { fetchMeta } from '../../lib/meta';
-import Server from '../../lib/Server';
+import Server from '../../lib/server';
+import { GenericObject } from '../../types/Common';
+import { bufferAttributes, bufferComponentType, bufferCompoundType, bufferInitialType, bufferLayoutRow, bufferNotesType, bufferPhType, bufferVariable_dataType } from '../../types/pages/webcontent/Buffer';
 import { Routing } from '../../types/Routing';
 
-const s = new Server();
+//const s = new Server();
 
 const bufferCategories = [
     { name: "" },
@@ -16,42 +18,19 @@ const bufferCategories = [
     { name: "Gel Electrophoresis" }
 ];
 
-type notesType = {
-    [key: string]: any,
-    final: string | "",
-    special: null,
-    additional: null,
-};
-
-const notesSet: notesType = {
+const notesSet: bufferNotesType = {
     final: "",
     special: null,
     additional: null
 };
 
-type phType = {
-    [key: string]: any,
-    amount: number | '',
-    conjAmount: number | '',
-    pH: number | '';
-};
-
-const phSet: phType = {
+const phSet: bufferPhType = {
     amount: '',
     conjAmount: '',
     pH: ''
 };
 
-type s_compType = {
-    [key: string]: any,
-    cID: string | '',
-    amount: number | '',
-    amount_type: string,
-    concentration: number | '',
-    concentration_type: string;
-};
-
-const s_compSet: s_compType = {
+const singleComponentSet: bufferComponentType = {
     cID: '',
     amount: '',
     amount_type: 'g',
@@ -59,54 +38,24 @@ const s_compSet: s_compType = {
     concentration_type: 'M'
 };
 
-type v_compType = {
-    [key: string]: any,
-    cID: string | '',
-    amount_type: string,
-    concentration_type: string;
-};
-
-const v_compSet: v_compType = {
+const variableComponentSet: bufferComponentType = {
     cID: '',
     amount_type: 'g',
     concentration_type: 'M'
 };
 
-type compType = {
-    [key: string]: any,
-    cID: string | '',
-    mw: number | '',
-    name: string | '';
-};
-
-const comp: compType = {
+const compoundSet: bufferCompoundType = {
     cID: '',
     mw: '',
     name: ''
 };
 
-type variable_data_type = {
-    [key: string]: any,
-    min_ph: number | '',
-    max_ph: number | '',
-};
-
-const variable_data_set: variable_data_type = {
+const variable_dataSet: bufferVariable_dataType = {
     min_ph: '',
     max_ph: ''
 };
 
-type s_type = {
-    pH: number | '',
-    molarity: number | '',
-    base_solvent: string | '',
-    source: string | '',
-    description: string | '',
-    type: string | '',
-    notes: any,
-};
-
-const sData: s_type = {
+const singleBufferAttr: bufferAttributes = {
     pH: '',
     molarity: '',
     base_solvent: '',
@@ -116,60 +65,42 @@ const sData: s_type = {
     notes: { ...notesSet },
 };
 
-type v_type = {
-    base_solvent: string | '',
-    source: string | '',
-    description: string | '',
-    type: string | '',
-    notes: any,
-    variable_data: any;
-    phArr: Array<any>;
-};
-
-const vData: v_type = {
+const variableBufferAttr: bufferAttributes = {
     base_solvent: '',
     source: '',
     description: '',
     type: '',
     notes: { ...notesSet },
-    variable_data: {},
+    variable_data: { ...variable_dataSet },
     phArr: []
 };
 
-type initialType = {
-    [key: string]: any,
-    bufferType: string,
-    formula_id: string | '',
-    title: string | '',
-    components: Array<any>,
-    attributes: any,
-    compounds: Array<any>;
-};
-
-const initial: initialType = {
+const initial: bufferInitialType = {
     bufferType: 'single',
     formula_id: '',
     title: '',
-    components: [{ ...s_compSet }],
-    attributes: {},
-    compounds: [{ ...comp }]
+    components: [{ ...singleComponentSet }],
+    attributes: { ...singleBufferAttr },
+    compounds: [{ ...compoundSet }]
 };
 
 //Function which pulls the molecular weight from the database for an entered compound cID
-const pullCompoundsData = (ev: any, _data: React.Dispatch<React.SetStateAction<initialType>>) => {
-    const index = ev.target.getAttribute('data-index');
+const pullCompoundsData = (ev: ChangeEvent<HTMLInputElement>, _data: React.Dispatch<React.SetStateAction<bufferInitialType>>): void => {
+    const index = Number(ev.target.getAttribute('data-index'));
     const inputValue = ev.target.value;
     const compoundID = inputValue.toLowerCase()
         .replace(/[^a-z0-9]/gu, '-')
         .replace(/(?:-){2,}/gu, '-')
         .trim();
+    const s = new Server<GenericObject, { mw: number; }[]>();
     s.ajax({
-        url: '/api/webcontent/buffer/get-compounds-info',
+        url: '/webcontent/buffer/get-compounds-info',
         type: 'POST',
         data: { compoundID },
         dataType: 'application/json',
-        success: (response: any) => {
+        success: (response) => {
             if (response.code === 200) {
+                //console.log("The db return for pullCompoundsData is: " + JSON.stringify(response, null, 4));
                 _data((old) => {
                     old.compounds[index].mw = response.data[0].mw;
                     return { ...old };
@@ -180,13 +111,13 @@ const pullCompoundsData = (ev: any, _data: React.Dispatch<React.SetStateAction<i
 };
 
 let timer: NodeJS.Timeout;
-const debounce = (ev: any, _data: React.Dispatch<React.SetStateAction<initialType>>) => {
+const debounce = (ev: ChangeEvent<HTMLInputElement>, _data: React.Dispatch<React.SetStateAction<bufferInitialType>>): void => {
     if (timer) { clearTimeout(timer); }
     timer = setTimeout(() => pullCompoundsData(ev, _data), 200);
 };
 
 //Function that clears out all input values and returns empty object with format determined by bufferType
-const clearInputs = (bufferType: string, _data: React.Dispatch<React.SetStateAction<typeof initial>>) => {
+const clearInputs = (bufferType: string, _data: React.Dispatch<React.SetStateAction<typeof initial>>): void => {
     if (bufferType === 'single') {
         const initialObj = {
             bufferType: 'single',
@@ -196,14 +127,14 @@ const clearInputs = (bufferType: string, _data: React.Dispatch<React.SetStateAct
             attributes: {},
             compounds: []
         };
-        const initialCompArr: any = [];
-        const compSet = { ...s_compSet };
-        initialCompArr.push(compSet);
-        const initialAttrObj = { ...sData };
+        const initialCompArr: bufferComponentType[] = [];
+        const componentSet = { ...singleComponentSet };
+        initialCompArr.push(componentSet);
+        const initialAttrObj = { ...singleBufferAttr };
         const initialNotes = { ...notesSet };
-        const initialCompoundArr: any = [];
-        const compoundSet = { ...comp };
-        initialCompoundArr.push(compoundSet);
+        const initialCompoundArr: bufferCompoundType[] = [];
+        const compound = { ...compoundSet };
+        initialCompoundArr.push(compound);
         _data((old) => {
             old.components = initialCompArr;
             old.attributes = initialAttrObj;
@@ -229,29 +160,31 @@ const clearInputs = (bufferType: string, _data: React.Dispatch<React.SetStateAct
             attributes: {},
             compounds: []
         };
-        const initialCompArr: any = [];
-        const compSet = { ...v_compSet };
-        const compSet2 = { ...v_compSet };
+        const initialCompArr: bufferComponentType[] = [];
+        const compSet = { ...variableComponentSet };
+        const compSet2 = { ...variableComponentSet };
         initialCompArr.push(compSet);
         initialCompArr.push(compSet2);
-        const initialAttrObj = { ...vData };
+        const initialAttrObj = { ...variableBufferAttr };
         const initialNotes = { ...notesSet };
-        const initialphArr: any = [];
+        const initialphArr: bufferPhType[] = [];
         const set = { ...phSet };
         initialphArr.push(set);
-        const initialVarObj = { ...variable_data_set };
-        const initialCompoundArr: any = [];
-        const compoundSet = { ...comp };
-        const compoundSet2 = { ...comp };
-        initialCompoundArr.push(compoundSet);
-        initialCompoundArr.push(compoundSet2);
+        const initialVarObj = { ...variable_dataSet };
+        const initialCompoundArr: bufferCompoundType[] = [];
+        const compound = { ...compoundSet };
+        const compound2 = { ...compoundSet };
+        initialCompoundArr.push(compound);
+        initialCompoundArr.push(compound2);
         _data((old) => {
             old.components = initialCompArr;
             old.attributes = initialAttrObj;
             old.attributes.notes = initialNotes;
             old.attributes.phArr = initialphArr;
             old.compounds = initialCompoundArr;
-            old.attributes.variable_data = initialVarObj;
+            if (old.attributes.variable_data && !old.attributes.variable_data.m) {
+                old.attributes.variable_data = initialVarObj;
+            }
             return {
                 ...initialObj,
                 components: [...old.components],
@@ -267,7 +200,7 @@ const clearInputs = (bufferType: string, _data: React.Dispatch<React.SetStateAct
     }
 };
 
-const handleRadioInput = (ev: any, _data: React.Dispatch<React.SetStateAction<typeof initial>>) => {
+const handleRadioInput = (ev: ChangeEvent<HTMLInputElement>, _data: React.Dispatch<React.SetStateAction<typeof initial>>): void => {
     const state = ev.target.value;
     _data((old) => {
         old.bufferType = state;
@@ -275,42 +208,48 @@ const handleRadioInput = (ev: any, _data: React.Dispatch<React.SetStateAction<ty
     });
 };
 
-const handleInput = (ev: any, _data: React.Dispatch<React.SetStateAction<typeof initial>>) => {
+const handleInput = (ev: ChangeEvent<HTMLSelectElement> | ChangeEvent<HTMLInputElement> | ChangeEvent<HTMLTextAreaElement>, _data: React.Dispatch<React.SetStateAction<typeof initial>>): void => {
     const inputValue = ev.target.value;
-    const inputID = ev.target.id;
+    const inputID = ev.target.id as keyof typeof singleBufferAttr | keyof typeof variableBufferAttr | keyof typeof compoundSet | keyof typeof singleComponentSet | keyof typeof variableComponentSet | keyof typeof initial;
     const key = ev.target.getAttribute('data-key');
-    const index = ev.target.getAttribute('data-index');
+    const index = Number(ev.target.getAttribute('data-index'));
     if (key === 'attributes') {
         if (inputID === 'notes') {
             _data((old) => {
-                old.attributes[inputID].final = inputValue;
                 return {
                     ...old,
                     attributes: {
                         ...old.attributes,
-                        notes: { ...old.attributes.notes }
+                        notes: {
+                            ...old.attributes.notes,
+                            final: inputValue
+                        }
                     }
                 };
             });
         }
         else {
             _data((old) => {
-                old.attributes[inputID] = inputValue;
                 return {
                     ...old,
-                    attributes: { ...old.attributes }
+                    attributes: {
+                        ...old.attributes,
+                        [inputID]: inputValue
+                    }
                 };
             });
         }
     }
     else if (key === 'variable_data') {
         _data((old) => {
-            old.attributes.variable_data[inputID] = inputValue;
             return {
                 ...old,
                 attributes: {
                     ...old.attributes,
-                    variable_data: { ...old.attributes.variable_data }
+                    variable_data: {
+                        ...old.attributes.variable_data,
+                        [inputID]: inputValue
+                    }
                 }
             };
         });
@@ -347,7 +286,7 @@ const handleInput = (ev: any, _data: React.Dispatch<React.SetStateAction<typeof 
         }
         else {
             _data((old) => {
-                old.compounds[index][inputID] = inputValue;
+                old.compounds[index][inputID as 'cID' || 'mw'] = inputValue;
                 return {
                     ...old,
                     compounds: [...old.compounds]
@@ -355,18 +294,42 @@ const handleInput = (ev: any, _data: React.Dispatch<React.SetStateAction<typeof 
             });
         }
     }
+
     else if (key === 'components') {
         _data((old) => {
-            old.components[index][inputID] = inputValue;
+            if (!old) { return old; }
+            const temp = [...old.components];
+            temp[index][inputID as 'cID' || 'amount' || 'amount_type' || 'concentration' || 'concentration_type'] = inputValue;
+            //old.components = [...temp];
             return {
                 ...old,
-                components: [...old.components]
+                components: temp
             };
         });
     }
+    /*
+    else if (key === 'components') {
+        const inputID: keyof bufferComponentType = ev.target.id as keyof bufferComponentType;
+        _data((old) => (
+            {
+                ...old,
+                components: [
+                    ...old.components,
+                    [index]: {
+                        ...old.components[index],
+                        [inputID]: inputValue
+                    }
+                ]
+            }
+        ));
+    }
+    */
     else if (key === 'phArr') {
         _data((old) => {
-            old.attributes.phArr[index][inputID] = inputValue;
+            if (!old || typeof old.attributes.phArr === "undefined") { return old; }
+            //const temp = [...old.attributes.phArr];
+            //temp[index][inputID as 'amount' || 'conjAmount' || 'pH'] = inputValue;
+            old.attributes.phArr[index][inputID as 'amount' || 'conjAmount || pH'] = inputValue;
             return {
                 ...old,
                 attributes: {
@@ -378,16 +341,18 @@ const handleInput = (ev: any, _data: React.Dispatch<React.SetStateAction<typeof 
     }
     else if (key === 'type') {
         _data((old) => {
-            old.attributes[inputID] = inputValue;
             return {
                 ...old,
-                attributes: { ...old.attributes }
+                attributes: {
+                    ...old.attributes,
+                    [inputID]: inputValue
+                }
             };
         });
     }
 };
 
-const TitleInput = (props: { rowLabel: string, id: string, type: string, placeholder: string, _data: React.Dispatch<React.SetStateAction<typeof initial>>, data: typeof initial; }) => {
+const TitleInput = (props: { rowLabel: string, id: string, type: string, placeholder: string, _data: React.Dispatch<React.SetStateAction<typeof initial>>, data: typeof initial; }): JSX.Element => {
     const { rowLabel, id, type, placeholder, _data, data } = props;
     return (
         <>
@@ -401,15 +366,15 @@ const TitleInput = (props: { rowLabel: string, id: string, type: string, placeho
                 id={id}
                 type={type}
                 data-key='title'
-                value={data[id]}
+                value={data.title}
                 placeholder={placeholder}
-                onChange={(ev: any) => { handleInput(ev, _data); }}
+                onChange={(ev: ChangeEvent<HTMLInputElement>) => { handleInput(ev, _data); }}
             /></td>
         </>
     );
 };
 
-const CustomInput = (props: { rowLabel: string, id: string, type: string, placeholder: string, _data: React.Dispatch<React.SetStateAction<typeof initial>>, data: typeof initial; }) => {
+const CustomInput = (props: { rowLabel: string, id: string, type: string, placeholder: string, _data: React.Dispatch<React.SetStateAction<typeof initial>>, data: typeof initial; }): JSX.Element => {
     const { rowLabel, id, type, placeholder, _data, data } = props;
     return (
         <>
@@ -423,15 +388,15 @@ const CustomInput = (props: { rowLabel: string, id: string, type: string, placeh
                 id={id}
                 type={type}
                 data-key='attributes'
-                value={data.attributes[id]}
+                value={data.attributes[id as keyof typeof singleBufferAttr | keyof typeof variableBufferAttr] as string | number}
                 placeholder={placeholder}
-                onChange={(ev: any) => { handleInput(ev, _data); }}
+                onChange={(ev: ChangeEvent<HTMLInputElement>) => { handleInput(ev, _data); }}
             /></td>
         </>
     );
 };
 
-const CustomSelect = (props: { id: string, data: typeof initial, _data: React.Dispatch<React.SetStateAction<typeof initial>>; }) => {
+const CustomSelect = (props: { id: string, data: typeof initial, _data: React.Dispatch<React.SetStateAction<typeof initial>>; }): JSX.Element => {
     const { id, data, _data } = props;
     return (
         <>
@@ -441,10 +406,10 @@ const CustomSelect = (props: { id: string, data: typeof initial, _data: React.Di
                 value={data.attributes.type}
                 style={{ width: '250px' }}
                 data-key='type'
-                onChange={(ev: any) => { handleInput(ev, _data); }}
+                onChange={(ev: ChangeEvent<HTMLSelectElement>) => { handleInput(ev, _data); }}
             >
                 {
-                    bufferCategories.map((option: any, index: number) => {
+                    bufferCategories.map((option, index: number) => {
                         return <option
                             key={index}
                             value={option.name}>{option.name}</option>;
@@ -455,7 +420,7 @@ const CustomSelect = (props: { id: string, data: typeof initial, _data: React.Di
     );
 };
 
-const InputPH = (props: { rowLabel: string, id: string, type: string, placeholder: string, _data: React.Dispatch<React.SetStateAction<typeof initial>>, data: typeof initial; }) => {
+const InputPH = (props: { rowLabel: string, id: string, type: string, placeholder: string, _data: React.Dispatch<React.SetStateAction<typeof initial>>, data: typeof initial; }): JSX.Element => {
     const { rowLabel, id, type, placeholder, _data, data } = props;
     return (
         <>
@@ -469,15 +434,15 @@ const InputPH = (props: { rowLabel: string, id: string, type: string, placeholde
                 id={id}
                 type={type}
                 data-key='variable_data'
-                value={data.attributes.variable_data?.[id]}
+                value={data.attributes.variable_data?.[id as 'min_ph' || 'max_ph']}
                 placeholder={placeholder}
-                onChange={(ev: any) => { handleInput(ev, _data); }}
+                onChange={(ev: ChangeEvent<HTMLInputElement>) => { handleInput(ev, _data); }}
             /></td>
         </>
     );
 };
 
-const TextAreaDescription = (props: { rowLabel: string, id: string, placeholder: string, _data: React.Dispatch<React.SetStateAction<typeof initial>>, data: typeof initial; }) => {
+const TextAreaDescription = (props: { rowLabel: string, id: string, placeholder: string, _data: React.Dispatch<React.SetStateAction<typeof initial>>, data: typeof initial; }): JSX.Element => {
     const { rowLabel, id, placeholder, _data, data } = props;
     return (
         <>
@@ -489,19 +454,19 @@ const TextAreaDescription = (props: { rowLabel: string, id: string, placeholder:
             <td colSpan={2}><textarea
                 id={id}
                 data-key='attributes'
-                value={data.attributes[id]}
+                value={data.attributes.description}
                 placeholder={placeholder}
                 style={{
                     width: '500px',
                     minHeight: '200px',
                     resize: 'none'
                 }}
-                onChange={(ev: any) => { handleInput(ev, _data); }} /></td>
+                onChange={(ev: ChangeEvent<HTMLTextAreaElement>) => { handleInput(ev, _data); }} /></td>
         </>
     );
 };
 
-const TextAreaNotes = (props: { rowLabel: string, id: string, placeholder: string, _data: React.Dispatch<React.SetStateAction<typeof initial>>, data: typeof initial; }) => {
+const TextAreaNotes = (props: { rowLabel: string, id: string, placeholder: string, _data: React.Dispatch<React.SetStateAction<typeof initial>>, data: typeof initial; }): JSX.Element => {
     const { rowLabel, id, placeholder, _data, data } = props;
     return (
         <>
@@ -513,29 +478,29 @@ const TextAreaNotes = (props: { rowLabel: string, id: string, placeholder: strin
             <td colSpan={2}><textarea
                 id={id}
                 data-key='attributes'
-                value={data.attributes[id].final}
+                value={data.attributes.notes.final}
                 placeholder={placeholder}
                 style={{
                     width: '500px',
                     minHeight: '200px',
                     resize: 'none'
                 }}
-                onChange={(ev: any) => { handleInput(ev, _data); }} /></td>
+                onChange={(ev: ChangeEvent<HTMLTextAreaElement>) => { handleInput(ev, _data); }} /></td>
         </>
     );
 };
 
-//Handles any manipulation (adding or deleting) of rows for the components table.
-const rows = (ev: any, data: typeof initial, _data: React.Dispatch<React.SetStateAction<typeof initial>>) => {
-    const inputID = ev.target.id;
-    const index = ev.target.getAttribute('data-index');
+//Handles manipulation (adding or deleting) of rows for the components table.
+const rows = (ev: React.MouseEvent<HTMLElement>, data: typeof initial, _data: React.Dispatch<React.SetStateAction<typeof initial>>): void => {
+    const inputID = ev.currentTarget.id;
+    const index = Number(ev.currentTarget.getAttribute('data-index'));
     if (data.bufferType === 'single') {
         const newRows = [...data.components];
         const newCompRows = [...data.compounds];
         if (inputID === 'addRow') {
-            const x = { ...s_compSet };
+            const x = { ...singleComponentSet };
             newRows.push(x);
-            const y = { ...comp };
+            const y = { ...compoundSet };
             newCompRows.push(y);
         }
         else if (inputID === 'deleteRow') {
@@ -549,6 +514,7 @@ const rows = (ev: any, data: typeof initial, _data: React.Dispatch<React.SetStat
         });
     }
     else if (data.bufferType === 'variable') {
+        if (typeof data.attributes.phArr === "undefined") { return; }
         const newRows = [...data.attributes.phArr];
         if (inputID === 'addRow') {
             const x = { ...phSet };
@@ -574,7 +540,7 @@ const rows = (ev: any, data: typeof initial, _data: React.Dispatch<React.SetStat
 const CustomTableS = (props: {
     data: typeof initial,
     _data: React.Dispatch<React.SetStateAction<typeof initial>>;
-}) => {
+}): JSX.Element => {
     const { data, _data } = props;
     return (
         <>
@@ -595,7 +561,7 @@ const CustomTableS = (props: {
                         </tr>
                     </thead>
                     <tbody>
-                        {data.components && data.compounds && data.compounds.map((param: any, index: any) => {
+                        {data.components && data.compounds && data.compounds.map((param: bufferCompoundType, index: number) => {
                             return (
                                 <tr key={index}>
                                     <td><input
@@ -605,7 +571,7 @@ const CustomTableS = (props: {
                                         id='name'
                                         data-key='compounds'
                                         data-index={index}
-                                        onChange={(ev: any) => { handleInput(ev, _data); debounce(ev, _data); }}
+                                        onChange={(ev: ChangeEvent<HTMLInputElement>) => { handleInput(ev, _data); debounce(ev, _data); }}
                                     /></td>
                                     <td><input
                                         type='number'
@@ -613,7 +579,7 @@ const CustomTableS = (props: {
                                         id='amount'
                                         data-key='components'
                                         data-index={index}
-                                        onChange={(ev: any) => { handleInput(ev, _data); }}
+                                        onChange={(ev: ChangeEvent<HTMLInputElement>) => { handleInput(ev, _data); }}
                                     /></td>
                                     <td><input
                                         type='number'
@@ -621,7 +587,7 @@ const CustomTableS = (props: {
                                         id='concentration'
                                         data-key='components'
                                         data-index={index}
-                                        onChange={(ev: any) => { handleInput(ev, _data); }}
+                                        onChange={(ev: ChangeEvent<HTMLInputElement>) => { handleInput(ev, _data); }}
                                     /></td>
                                     <td><input
                                         type='number'
@@ -629,12 +595,12 @@ const CustomTableS = (props: {
                                         id='mw'
                                         data-key='compounds'
                                         data-index={index}
-                                        onChange={(ev: any) => { handleInput(ev, _data); }}
+                                        onChange={(ev: ChangeEvent<HTMLInputElement>) => { handleInput(ev, _data); }}
                                     /></td>
                                     <td><button
                                         data-index={index}
                                         id='deleteRow'
-                                        onClick={(ev: any) => { rows(ev, data, _data); }}>&times;</button></td>
+                                        onClick={(ev: React.MouseEvent<HTMLElement>) => { rows(ev, data, _data); }}>&times;</button></td>
                                 </tr>
                             );
                         })
@@ -650,7 +616,7 @@ const CustomTableS = (props: {
 const CustomTableV = (props: {
     data: typeof initial,
     _data: React.Dispatch<React.SetStateAction<typeof initial>>;
-}) => {
+}): JSX.Element => {
     const { data, _data } = props;
     return (
         <>
@@ -668,7 +634,7 @@ const CustomTableV = (props: {
                         </tr>
                     </thead>
                     <tbody>
-                        {data.components && data.compounds && data.compounds.map((param: any, index: any) => {
+                        {data.components && data.compounds && data.compounds.map((param: bufferCompoundType, index: number) => {
                             return (
                                 <tr key={index}>
                                     <td><input
@@ -678,14 +644,14 @@ const CustomTableV = (props: {
                                         data-index={index}
                                         value={param.name}
                                         id='name'
-                                        onChange={(ev: any) => { handleInput(ev, _data); debounce(ev, _data); }} /></td>
+                                        onChange={(ev: ChangeEvent<HTMLInputElement>) => { handleInput(ev, _data); debounce(ev, _data); }} /></td>
                                     <td><input
                                         type='number'
                                         data-key='compounds'
                                         data-index={index}
                                         value={param.mw}
                                         id='mw'
-                                        onChange={(ev: any) => { handleInput(ev, _data); }} /></td>
+                                        onChange={(ev: ChangeEvent<HTMLInputElement>) => { handleInput(ev, _data); }} /></td>
                                 </tr>
                             );
                         })}
@@ -699,7 +665,7 @@ const CustomTableV = (props: {
                         </tr>
                         <tr style={{ fontWeight: 'bold' }}>
                             {
-                                data.compounds.map((param: any, index: any) => {
+                                data.compounds.map((param: bufferCompoundType, index: number) => {
                                     return (
                                         <td key={index}>
                                             <input
@@ -715,7 +681,7 @@ const CustomTableV = (props: {
                         </tr>
                     </thead>
                     <tbody>
-                        {data.attributes.phArr && data.attributes.phArr.map((param: any, index: any) => {
+                        {data.attributes.phArr && data.attributes.phArr.map((param: bufferPhType, index: number) => {
                             return (
                                 <tr key={index}>
                                     <td><input
@@ -724,7 +690,7 @@ const CustomTableV = (props: {
                                         id='amount'
                                         data-index={index}
                                         data-key='phArr'
-                                        onChange={(ev: any) => { handleInput(ev, _data); }}
+                                        onChange={(ev: ChangeEvent<HTMLInputElement>) => { handleInput(ev, _data); }}
                                     /></td>
                                     <td><input
                                         type='number'
@@ -732,7 +698,7 @@ const CustomTableV = (props: {
                                         id='conjAmount'
                                         data-index={index}
                                         data-key='phArr'
-                                        onChange={(ev: any) => { handleInput(ev, _data); }}
+                                        onChange={(ev: ChangeEvent<HTMLInputElement>) => { handleInput(ev, _data); }}
                                     /></td>
                                     <td><input
                                         type='number'
@@ -740,12 +706,12 @@ const CustomTableV = (props: {
                                         id='pH'
                                         data-index={index}
                                         data-key='phArr'
-                                        onChange={(ev: any) => { handleInput(ev, _data); }}
+                                        onChange={(ev: ChangeEvent<HTMLInputElement>) => { handleInput(ev, _data); }}
                                     /></td>
                                     <td><button
                                         id='deleteRow'
                                         data-index={index}
-                                        onClick={(ev: any) => { rows(ev, data, _data); }}>&times;</button></td>
+                                        onClick={(ev: React.MouseEvent<HTMLElement>) => { rows(ev, data, _data); }}>&times;</button></td>
                                 </tr>
                             );
                         })}
@@ -756,7 +722,13 @@ const CustomTableV = (props: {
     );
 };
 
-//Recursive function that traverses an object checking for any value = ''. Returns true (and breaks) upon first value of '' it finds.
+/**
+ * Recursive function that traverses an object checking for value = "".
+ * Returns true (and breaks) upon first value of "" it finds. Else returns false.
+ * param: data which is an object/array that contains values or other nested objects/arrays
+ * returns: status as true or false.
+ */
+/*
 const containsEmptyValues = (data: any): boolean => {
     let status = false;
     if (typeof data === 'object' && data !== null) {
@@ -765,31 +737,96 @@ const containsEmptyValues = (data: any): boolean => {
             if (status === true) { break; }
         }
     }
-    else if (data === '') {
+    else if (data === "") {
         status = true;
     }
     return status;
 };
+*/
 
-const submitBuffer = (data: typeof initial) => {
-    if (containsEmptyValues(data) === true || data.compounds.length === 0) { alert("Missing valid input in all fields"); }
+const containsEmptyValues = (data: bufferInitialType): boolean => {
+    let status = false;
+    for (const key of Object.keys(data)) {
+        if (data[key as keyof bufferInitialType] === "") {
+            status = true;
+            break;
+        }
+    }
+    for (const key of Object.keys(data.attributes)) {
+        if (data.attributes[key as keyof bufferAttributes] === "") {
+            status = true;
+            break;
+        }
+    }
+    for (const key of Object.keys(data.attributes.notes)) {
+        if (data.attributes.notes[key as keyof bufferNotesType] === "") {
+            status = true;
+            break;
+        }
+    }
+    for (let i = 0; i < data.components.length; i++) {
+        for (const key of Object.keys(data.components[i])) {
+            if (data.components[i][key as keyof bufferComponentType] === "") {
+                status = true;
+                break;
+            }
+        }
+    }
+    for (let i = 0; i < data.compounds.length; i++) {
+        for (const key of Object.keys(data.compounds[i])) {
+            if (data.compounds[i][key as keyof bufferCompoundType] === "") {
+                status = true;
+                break;
+            }
+        }
+    }
+    if (data.bufferType === 'variable' && data.attributes.variable_data) {
+        for (const key of Object.keys(data.attributes.variable_data)) {
+            if (data.attributes.variable_data[key as keyof bufferVariable_dataType] === "") {
+                status = true;
+                break;
+            }
+        }
+    }
+    if (data.bufferType === 'variable' && data.attributes.phArr) {
+        for (let i = 0; i < data.attributes.phArr.length; i++) {
+            for (const key of Object.keys(data.attributes.phArr[i])) {
+                if (data.attributes.phArr[i][key as keyof bufferPhType] === "") {
+                    status = true;
+                    break;
+                }
+            }
+        }
+    }
+    console.log("The status is:" + status);
+    return status;
+};
+
+const submitBuffer = (data: typeof initial): void => {
+    console.log(JSON.stringify(data, null, 4));
+    if (containsEmptyValues(data) === true || data.compounds.length === 0 || data.attributes.phArr && data.attributes.phArr.length === 0) { alert("Missing valid input in all fields"); }
     else if (containsEmptyValues(data) === false) {
+        alert("Buffer was submitted to ajax call");
+        /*
         //Ajax request sends component information stored in new_component variable to node
+        const s = new Server<GenericObject, { fieldCount: number, affectedRows: number, insertId: number, info: string, serverStatus: number, warningStatus: number; }>();
         s.ajax({
-            url: '/api/webcontent/buffer/submit-buffer',
+            url: '/webcontent/buffer/submit-buffer',
             type: 'POST',
             data: data,
             dataType: 'application/json',
-            success: (response: any) => {
+            success: (response) => {
+                //console.log("The db return is: " + JSON.stringify(response, null, 4));
                 if (response.data.affectedRows === 1) { alert("The buffer data has been added to the server"); }
                 else if (response.data.affectedRows === 2) { alert("The buffer data has been updated on the server"); }
                 else { alert("There was an error sending the buffer data"); }
             }
         });
+        */
     }
 };
 
-const AddRowButton = (props: { data: typeof initial, _data: React.Dispatch<React.SetStateAction<typeof initial>>; }) => {
+const AddRowButton = (props: { data: typeof initial, _data: React.Dispatch<React.SetStateAction<typeof initial>>; }): JSX.Element => {
     const { data, _data } = props;
     return (
         <td><input
@@ -800,12 +837,12 @@ const AddRowButton = (props: { data: typeof initial, _data: React.Dispatch<React
                 alignContent: 'center',
                 width: '150px'
             }}
-            onClick={(ev: any) => { rows(ev, data, _data); }}
+            onClick={(ev: React.MouseEvent<HTMLElement>) => { rows(ev, data, _data); }}
         /></td>
     );
 };
 
-const SubmitButton = (props: { data: typeof initial; }) => {
+const SubmitButton = (props: { data: typeof initial; }): JSX.Element => {
     const { data } = props;
     return (
         <td><input
@@ -821,15 +858,7 @@ const SubmitButton = (props: { data: typeof initial; }) => {
     );
 };
 
-type row = {
-    rowLabel?: string,
-    id: string,
-    type?: string,
-    placeholder?: string,
-    rowComponent: CallableFunction;
-};
-
-const layout: { [key: string]: Array<row>; } = {
+const layout: { [key: string]: Array<bufferLayoutRow>; } = {
     single: [
         {
             rowLabel: 'Buffer name:',
@@ -966,17 +995,19 @@ const layout: { [key: string]: Array<row>; } = {
 };
 
 //Handles selection of buffer from the buffer dropdown list. Pulls data from server for selected title and sets values into dbData state.
-const handleBufferListClick = (ev: any, _data: React.Dispatch<React.SetStateAction<typeof initial>>, _dbData: React.Dispatch<React.SetStateAction<typeof initial>>, _display: React.Dispatch<React.SetStateAction<boolean>>) => {
-    const title = ev.target.getAttribute('data-title');
-    const id = ev.target.getAttribute('data-id');
+const handleBufferListClick = (ev: React.MouseEvent<HTMLElement>, _data: React.Dispatch<React.SetStateAction<typeof initial>>, _dbData: React.Dispatch<React.SetStateAction<typeof initial>>, _display: React.Dispatch<React.SetStateAction<boolean>>): void => {
+    const title = ev.currentTarget.getAttribute('data-title') as string;
+    const id = ev.currentTarget.getAttribute('data-id') as string;
     _display(true);
+    const s = new Server<GenericObject, bufferInitialType[]>();
     s.ajax({
-        url: '/api/webcontent/buffer/get-buffer-info',
+        url: '/webcontent/buffer/get-buffer-info',
         type: 'POST',
         data: { id },
         dataType: 'application/json',
-        success: (response: any) => {
+        success: (response) => {
             if (response.code === 200) {
+                //console.log("The db return is: " + JSON.stringify(response, null, 4));
                 if (!response.data[0].attributes.variable_data) {
                     _data((old) => {
                         old.bufferType = 'single';
@@ -989,7 +1020,6 @@ const handleBufferListClick = (ev: any, _data: React.Dispatch<React.SetStateActi
                         return { ...old };
                     });
                 }
-
                 if (!response.data[0].attributes.variable_data) {
                     _dbData((old) => {
                         old.bufferType = 'single';
@@ -1032,6 +1062,7 @@ const handleBufferListClick = (ev: any, _data: React.Dispatch<React.SetStateActi
                                 }
                             ];
                         }
+                        if (typeof old.attributes.phArr === "undefined") { return old; }
                         return {
                             ...old,
                             components: [...old.components],
@@ -1050,7 +1081,7 @@ const handleBufferListClick = (ev: any, _data: React.Dispatch<React.SetStateActi
     });
 };
 
-const DisplayBufferList = (props: { index: number, title: string, id: string, filterTerm: any, _data: React.Dispatch<React.SetStateAction<typeof initial>>, _dbData: React.Dispatch<React.SetStateAction<typeof initial>>, _display: React.Dispatch<React.SetStateAction<boolean>>; }) => {
+const DisplayBufferList = (props: { index: number, title: string, id: string, filterTerm: string, _data: React.Dispatch<React.SetStateAction<typeof initial>>, _dbData: React.Dispatch<React.SetStateAction<typeof initial>>, _display: React.Dispatch<React.SetStateAction<boolean>>; }): JSX.Element => {
     const { index, title, id, filterTerm, _data, _dbData, _display } = props;
     //Filter which returns blank if there is no matches to the entered filterTerm.
     if (filterTerm && title.toLowerCase().indexOf(filterTerm.toLowerCase()) === -1) {
@@ -1071,25 +1102,27 @@ const DisplayBufferList = (props: { index: number, title: string, id: string, fi
                 boxSizing: 'border-box',
                 cursor: 'pointer'
             }}
-            onClick={(ev: any) => { handleBufferListClick(ev, _data, _dbData, _display); }}
+            onClick={(ev: React.MouseEvent<HTMLElement>) => { handleBufferListClick(ev, _data, _dbData, _display); }}
         >
             {title}
         </div>
     );
 };
 
-const BufferDropdown = (props: { _data: React.Dispatch<React.SetStateAction<typeof initial>>, _dbData: React.Dispatch<React.SetStateAction<typeof initial>>, _display: React.Dispatch<React.SetStateAction<boolean>>; }) => {
+const BufferDropdown = (props: { _data: React.Dispatch<React.SetStateAction<typeof initial>>, _dbData: React.Dispatch<React.SetStateAction<typeof initial>>, _display: React.Dispatch<React.SetStateAction<boolean>>; }): JSX.Element => {
     const [databaseList, _databaseList] = useState([]);
-    const [filterTerm, _filterTerm] = useState<string>();
+    const [filterTerm, _filterTerm] = useState<string>("");
     const { _data, _dbData, _display } = props;
     useEffect(() => {
+        const s = new Server();
         s.ajax({
-            url: '/api/webcontent/buffer/get-buffer-list',
+            url: '/webcontent/buffer/get-buffer-list',
             type: 'POST',
             data: {},
             dataType: 'application/json',
             success: (response: any) => {
                 if (response.code === 200) {
+                    //console.log("The db dropwdown return is: " + JSON.stringify(response, null, 4));
                     _databaseList(response.data);
                 }
             }
@@ -1100,7 +1133,7 @@ const BufferDropdown = (props: { _data: React.Dispatch<React.SetStateAction<type
             <input
                 value={filterTerm}
                 type='text'
-                onChange={(ev: any) => { _filterTerm(ev.target.value); }}
+                onChange={(ev: ChangeEvent<HTMLInputElement>) => { _filterTerm(ev.target.value); }}
                 placeholder='Filter buffers...'
                 style={{
                     display: 'block',
@@ -1114,7 +1147,7 @@ const BufferDropdown = (props: { _data: React.Dispatch<React.SetStateAction<type
                     height: '150px',
                     overflowY: 'auto'
                 }}>
-                {(databaseList) && databaseList.map((param: any, index: number) => {
+                {(databaseList) && databaseList.map((param: bufferInitialType, index: number) => {
                     return (
                         <>
                             <DisplayBufferList
@@ -1135,16 +1168,16 @@ const BufferDropdown = (props: { _data: React.Dispatch<React.SetStateAction<type
 };
 
 const RenderInputs = (props: {
-    InputLayout: any,
+    InputLayout: bufferLayoutRow[],
     _data: React.Dispatch<React.SetStateAction<typeof initial>>,
     data: typeof initial;
-}) => {
+}): JSX.Element => {
     const { InputLayout, _data, data } = props;
     return (
         <>
             <table>
                 <tbody>
-                    {InputLayout.map((element: row, index: number) => {
+                    {InputLayout.map((element: bufferLayoutRow, index: number) => {
                         return (
                             <tr key={index}>
                                 {
@@ -1172,7 +1205,7 @@ const RenderPageContent = (props: {
     _data: React.Dispatch<React.SetStateAction<typeof initial>>,
     data: typeof initial,
     _dbData: React.Dispatch<React.SetStateAction<typeof initial>>;
-}) => {
+}): JSX.Element => {
     const { display, _display, _data, data, _dbData } = props;
     return (
         <>
@@ -1199,7 +1232,7 @@ const RenderPageContent = (props: {
                     <input
                         type='radio'
                         style={{ margin: "0 5px 0 15px" }}
-                        onChange={(ev: any) => { handleRadioInput(ev, _data); }}
+                        onChange={(ev: ChangeEvent<HTMLInputElement>) => { handleRadioInput(ev, _data); }}
                         value='single'
                         name='buffer'
                         checked={data.bufferType === 'single'}
@@ -1207,7 +1240,7 @@ const RenderPageContent = (props: {
                     <input
                         type='radio'
                         style={{ margin: "0 5px 0 15px" }}
-                        onChange={(ev: any) => { handleRadioInput(ev, _data); }}
+                        onChange={(ev: ChangeEvent<HTMLInputElement>) => { handleRadioInput(ev, _data); }}
                         value='variable'
                         name='buffer'
                         checked={data.bufferType === 'variable'}
@@ -1226,9 +1259,9 @@ const RenderPageContent = (props: {
     );
 };
 
-const BufferPage = () => {
-    const [data, _data] = useState<initialType>(initial);
-    const [dbData, _dbData] = useState<initialType>(initial);
+const BufferPage = (): JSX.Element => {
+    const [data, _data] = useState<bufferInitialType>(initial);
+    const [dbData, _dbData] = useState<bufferInitialType>(initial);
     const [display, _display] = useState<boolean>(false);
 
     useEffect(() => {
@@ -1256,6 +1289,7 @@ const BufferPage = () => {
             });
         }
         else if (dbData.bufferType === 'variable') {
+            //console.log("The pull from database is " + JSON.stringify(dbData, null, 4));
             _data((old) => {
                 old.title = dbData.title;
                 old.formula_id = dbData.formula_id;
@@ -1265,6 +1299,7 @@ const BufferPage = () => {
                 old.attributes.variable_data = dbData.attributes.variable_data;
                 old.attributes.notes = dbData.attributes.notes;
                 old.compounds = dbData.compounds;
+                if (typeof old.attributes.phArr === "undefined") { return old; }
                 return {
                     ...old,
                     components: [...old.components],

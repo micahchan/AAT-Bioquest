@@ -1,27 +1,21 @@
 import { Editor } from '@tinymce/tinymce-react';
-import React, { MutableRefObject, useEffect, useRef, useState } from 'react';
+import React, { Dispatch, MutableRefObject, SetStateAction, useEffect, useRef, useState } from 'react';
 import TinyMCE from '../../components/tinymce/Editor';
 import { fetchMeta } from '../../lib/meta';
-import Server from '../../lib/Server';
+import Server from '../../lib/server';
+import { catalogInitialType } from '../../types/pages/webcontent/Catalog';
 import { Routing } from '../../types/Routing';
 
 const s = new Server();
 
-type initialType = {
-    [key: string]: any,
-    catalog_id: number | "",
-    title: string | "",
-    main_content: string | "",
-};
-
-const initial: initialType = {
+const initial: catalogInitialType = {
     catalog_id: "",
     title: "",
     main_content: ""
 };
 
 const clearInputs = (_data: React.Dispatch<React.SetStateAction<typeof initial>>) => {
-    const initialObj: initialType = {
+    const initialObj: catalogInitialType = {
         catalog_id: "",
         title: "",
         main_content: ""
@@ -60,7 +54,9 @@ const handleCatalogListClick = (ev: any, _data: React.Dispatch<React.SetStateAct
         dataType: 'application/json',
         success: (response: any) => {
             if (response.code === 200) {
+                console.log("Reponse data is: " + JSON.stringify(response.data, null, 4));
                 _data((old) => {
+                    old.oID = response.data[0].oID;
                     old.title = title;
                     old.catalog_id = id;
                     old.main_content = response.data[0].main_content;
@@ -71,7 +67,7 @@ const handleCatalogListClick = (ev: any, _data: React.Dispatch<React.SetStateAct
     });
 };
 
-const submitCatalog = (data: typeof initial) => {
+const submitCatalog = (data: typeof initial, _data: React.Dispatch<React.SetStateAction<typeof initial>>) => {
     console.log("The submitting data is: " + JSON.stringify(data, null, 4));
     if (data.title === '' || data.main_content === '') { alert("Missing valid input in all fields"); }
     else if (data.title !== '' && data.main_content !== '') {
@@ -81,8 +77,14 @@ const submitCatalog = (data: typeof initial) => {
             data: data,
             dataType: 'application/json',
             success: (response: any) => {
-                if (response.data.affectedRows === 1) { alert("The catalog data has been added to the server"); }
-                else if (response.data.affectedRows === 2) { alert("The catalog data has been updated on the server"); }
+                if (response.data.insertId !== 0) {
+                    alert("The catalog data has been added to the server");
+                    _data((old) => {
+                        old.oID = response.data.insertId;
+                        return { ...old };
+                    });
+                }
+                else if (response.data.insertId === 0) { alert("The catalog data has been updated on the server"); }
                 else { alert("There was an error sending the catalog data"); }
             }
         });
@@ -121,9 +123,10 @@ const CatalogDropdown = (props: { _display: React.Dispatch<React.SetStateAction<
     const [databaseList, _databaseList] = useState<any>();
     const [filterTerm, _filterTerm] = useState<string>();
     const { _display, _data } = props;
+    //TODO: Convert to a get static props situation
     useEffect(() => {
         s.ajax({
-            url: '/api/webcontent/catalog/get-catalog-list',
+            url: '/webcontent/catalog/get-catalog-list',
             type: 'POST',
             data: {},
             dataType: 'application/json',
@@ -173,9 +176,9 @@ const CatalogDropdown = (props: { _display: React.Dispatch<React.SetStateAction<
     );
 };
 
-const Basic = (props: { _data: React.Dispatch<React.SetStateAction<typeof initial>>, data: typeof initial; }) => {
-    const { _data, data } = props;
-    const [editor, _editor] = useState<MutableRefObject<Editor['editor'] | null>>(useRef(null));
+const Basic = (props: { _data: React.Dispatch<React.SetStateAction<typeof initial>>, data: typeof initial, editor: MutableRefObject<Editor['editor'] | null>, _editor: Dispatch<SetStateAction<MutableRefObject<Editor['editor'] | null>>>, display: boolean; }) => {
+    const { _data, data, editor, _editor, display } = props;
+
     const save = (input: string) => {
         _data((old) => {
             old.main_content = input;
@@ -194,10 +197,11 @@ const Basic = (props: { _data: React.Dispatch<React.SetStateAction<typeof initia
 
     return (
         <>
-            <TinyMCE
-                _editor={_editor}
-                save={save}
-            />
+            {(display === true) ?
+                <div><TinyMCE
+                    _editor={_editor}
+                    save={save}
+                /> </div> : <></>}
         </>
 
     );
@@ -207,18 +211,18 @@ const RenderPageContent = (props: {
     display: boolean,
     _display: React.Dispatch<React.SetStateAction<boolean>>,
     _data: React.Dispatch<React.SetStateAction<typeof initial>>,
-    data: typeof initial;
+    data: typeof initial,
+    editor: MutableRefObject<Editor['editor'] | null>,
+    _editor: Dispatch<SetStateAction<MutableRefObject<Editor['editor'] | null>>>;
 }) => {
-    const { display, _display, _data, data } = props;
+    const { display, _display, _data, data, editor, _editor } = props;
     return (
         <>
             <input
+                className='action_button'
                 type='button'
                 value='Create New Entry'
-                style={{
-                    alignContent: 'center',
-                    width: '150px'
-                }}
+                style={{ alignContent: 'center', }}
                 onClick={() => { clearInputs(_data); _display(true); }}
             />
             <br /><br />
@@ -252,16 +256,17 @@ const RenderPageContent = (props: {
                     <br />
                     <Basic
                         _data={_data}
-                        data={data} />
+                        data={data}
+                        editor={editor}
+                        _editor={_editor}
+                        display={display} />
                     <br />
                     <input
+                        className='action_button'
                         type='button'
                         value='Submit Catalog'
-                        style={{
-                            alignContent: 'center',
-                            width: '150px'
-                        }}
-                        onClick={() => submitCatalog(data)}
+                        style={{ alignContent: 'center' }}
+                        onClick={() => submitCatalog(data, _data)}
                     />
                 </div>
             </> : <></>}
@@ -272,6 +277,7 @@ const RenderPageContent = (props: {
 const CatalogPage = () => {
     const [data, _data] = useState<typeof initial>(initial);
     const [display, _display] = useState<boolean>(false);
+    const [editor, _editor] = useState<MutableRefObject<Editor['editor'] | null>>(useRef(null));
 
     return (
         <>
@@ -280,6 +286,8 @@ const CatalogPage = () => {
                 _display={_display}
                 _data={_data}
                 data={data}
+                editor={editor}
+                _editor={_editor}
             />
         </>
     );
