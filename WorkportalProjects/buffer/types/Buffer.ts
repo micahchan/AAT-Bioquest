@@ -1,3 +1,7 @@
+export type bufferListType = {
+    formula_id: string,
+    title: string;
+};
 
 export type bufferNotesType = {
     final: string | "",

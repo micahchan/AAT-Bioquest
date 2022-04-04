@@ -1,14 +1,27 @@
 import express from "express";
 import { RowDataPacket } from "mysql2";
 import Compound from "../../../lib/compounds";
-import { bufferInitialType } from "../../../types/pages/webcontent/Buffer";
-import { WorkPortalApp } from "../../../types/User";
+import { bufferInitialType, bufferPhType } from "../../../types/pages/webcontent/Buffer";
 import { Res } from "../../lib/response";
 import { _db } from "../../lib/sql";
 
 export const Buffer = express.Router();
 
-const linearLeastSquares = (data: bufferInitialType,) => {
+const checkEmptyValues = (data: bufferInitialType): boolean => {
+    let status = false;
+    for (let i = 0; data.attributes.phArr && i < data.attributes.phArr.length; i++) {
+        for (const key of Object.keys(data.attributes.phArr[i])) {
+            if (data.attributes.phArr[i][key as keyof bufferPhType] === "") {
+                // console.log("Tripped in server side script ", key);
+                status = true;
+                break;
+            }
+        }
+    }
+    return status;
+};
+
+const linearLeastSquares = (data: bufferInitialType): void => {
     if (data.attributes.phArr && data.attributes.variable_data) {
         const count = data.attributes.phArr.length;
         let sum_x = 0;
@@ -35,16 +48,18 @@ const linearLeastSquares = (data: bufferInitialType,) => {
 
 Buffer.post('/submit-buffer', async (req, res) => {
     const r = new Res(res);
-    interface RowType extends RowDataPacket, WorkPortalApp { }
-
+    // console.log("The database received data is: ", JSON.stringify(req.body, null, 4));
     if (req.body.attributes.phArr && req.body.attributes.phArr.length >= 2) {
-        linearLeastSquares(req.body);
+        if (checkEmptyValues(req.body) === false) {
+            linearLeastSquares(req.body);
+            // console.log("The data was computed: ", JSON.stringify(req.body, null, 4));
+        }
     }
-    //console.log("The database received data is: " + JSON.stringify(req.body, null, 4));
+
     try {
         const sql =
             "INSERT INTO www.formula_data (formula_id, title, type, components, attributes) VALUES (?, ?, 'buffer', ?, ?) ON DUPLICATE KEY UPDATE components = ?, attributes = ?";
-        const [data_row] = await _db.query<Array<RowType>>(sql, [req.body.formula_id, req.body.title, req.body.components, req.body.attributes, req.body.components, req.body.attributes]);
+        const [data_row] = await _db.query<Array<RowDataPacket>>(sql, [req.body.formula_id, req.body.title, req.body.components, req.body.attributes, req.body.components, req.body.attributes]);
 
         const rowsToAdd: {
             cID: string,
@@ -87,7 +102,7 @@ Buffer.post('/submit-buffer', async (req, res) => {
 
         const comp_sql = `INSERT IGNORE INTO www.compounds_depth (cID, depth1, depth2, depth3, depth4, depth5, value, hash) VALUES ${marks.join(', ')}`;
 
-        await _db.query<Array<RowType>>(comp_sql, paramsArr);
+        await _db.query<Array<RowDataPacket>>(comp_sql, paramsArr);
 
         if (!data_row || data_row.length === 0) {
             throw new Error('Error submitting buffer to database');
@@ -104,10 +119,10 @@ Buffer.post('/submit-buffer', async (req, res) => {
         return r.json();
     }
 });
-
+/*
 Buffer.post('/get-buffer-list', async (_req, res) => {
     const r = new Res(res);
-    interface RowType extends RowDataPacket, WorkPortalApp { }
+    interface RowType extends RowDataPacket {formula_id: string, title: string }
     try {
         const sql = "SELECT formula_id, title FROM www.formula_data WHERE type='buffer'";
         const [data_row] = await _db.query<Array<RowType>>(sql);
@@ -126,13 +141,19 @@ Buffer.post('/get-buffer-list', async (_req, res) => {
         return r.json();
     }
 });
-
+*/
 Buffer.post('/get-buffer-info', async (req, res) => {
     const r = new Res(res);
-    interface RowType extends RowDataPacket, WorkPortalApp { }
+    interface RowType extends RowDataPacket {
+        formula_id: string,
+        components: { cID: string, amount?: string, amount_type: string, concentration?: string, concentration_type: string; }[],
+        attributes: Record<string, unknown>;
+    }
+    interface RowType2 extends RowDataPacket { cID: string, mw: number, name: string; }
     try {
         const sql = "SELECT formula_id, components, attributes FROM www.formula_data WHERE type='buffer' AND formula_id = ?";
         const [data_row] = await _db.query<Array<RowType>>(sql, [req.body.id]);
+        // console.log("Test of data_row: ", JSON.stringify(data_row, null, 4));
 
         const cIDarr: string[] = [];
         const marks: string[] = [];
@@ -145,25 +166,28 @@ Buffer.post('/get-buffer-info', async (req, res) => {
         }
 
         const comp_sql = `SELECT c1.cID, c1.value as mw, c2.value as name FROM www.compounds_depth as c1 INNER JOIN www.compounds_depth as c2 ON c1.cID = c2.cID WHERE c1.depth1 = 'mw' AND c2.depth1 = 'name' AND c1.cID IN (${marks.join(', ')})`;
-        const [comp_row] = await _db.query<Array<RowType>>(comp_sql, cIDarr);
+        const [comp_row] = await _db.query<Array<RowType2>>(comp_sql, cIDarr);
+        //console.log("Test of comp_row: " + JSON.stringify(comp_row, null, 4));
 
-        //Check to make sure no duplicates were pulled from the db. May be obselete with unique index from hashing.
-        const compounds: RowType[] = [];
+        //Check to remove duplicate entries pulled from the db. May be obselete with unique index from hashing.
+        const compounds: RowType2[] = [];
         if (comp_row !== null) {
             for (let i = 0; i < comp_row.length; i++) {
                 const compoundData = comp_row[i];
-                if (compounds.some((obj: RowType) => obj.cID === compoundData.cID) === false) { compounds.push(compoundData); }
+                if (compounds.some((obj: RowType2) => obj.cID === compoundData.cID) === false) {
+                    compounds.push(compoundData);
+                }
             }
         }
 
         //Orders the compounds to be the same as components after being pulled from the db
-        let sortCompounds: RowType[] = [];
-        sortCompounds = compounds.sort((a: RowType, b: RowType) => {
+        let sortCompounds: RowType2[] = [];
+        sortCompounds = compounds.sort((a: RowType2, b: RowType2) => {
             return cIDarr.indexOf(a.cID) - cIDarr.indexOf(b.cID);
         });
 
         if (data_row !== null) { data_row[0].compounds = sortCompounds; }
-
+        //console.log("Test of db data is: " + JSON.stringify(data_row, null, 4));
         if (!data_row || data_row.length === 0) {
             throw new Error('Error retrieving information of buffers');
         }
@@ -181,7 +205,7 @@ Buffer.post('/get-buffer-info', async (req, res) => {
 
 Buffer.post('/get-compounds-info', async (req, res) => {
     const r = new Res(res);
-    interface RowType extends RowDataPacket, WorkPortalApp { }
+    interface RowType extends RowDataPacket { mw: number; }
     try {
         const comp_sql = "SELECT value as mw FROM www.compounds_depth WHERE cID = ? AND depth1 ='mw'";
         const [data_row] = await _db.query<Array<RowType>>(comp_sql, [req.body.compoundID]);

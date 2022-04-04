@@ -1,11 +1,11 @@
+import { RowDataPacket } from 'mysql2';
 import React, { ChangeEvent, useEffect, useState } from 'react';
 import { fetchMeta } from '../../lib/meta';
 import Server from '../../lib/server';
+import { _db } from '../../server/lib/sql';
 import { GenericObject } from '../../types/Common';
-import { bufferAttributes, bufferComponentType, bufferCompoundType, bufferInitialType, bufferLayoutRow, bufferNotesType, bufferPhType, bufferVariable_dataType } from '../../types/pages/webcontent/Buffer';
+import { bufferAttributes, bufferComponentType, bufferCompoundType, bufferInitialType, bufferLayoutRow, bufferListType, bufferNotesType, bufferPhType, bufferVariable_dataType } from '../../types/pages/webcontent/Buffer';
 import { Routing } from '../../types/Routing';
-
-//const s = new Server();
 
 const bufferCategories = [
     { name: "" },
@@ -514,7 +514,7 @@ const rows = (ev: React.MouseEvent<HTMLElement>, data: typeof initial, _data: Re
         });
     }
     else if (data.bufferType === 'variable') {
-        if (typeof data.attributes.phArr === "undefined") { return; }
+        if (!data.attributes.phArr) { return; }
         const newRows = [...data.attributes.phArr];
         if (inputID === 'addRow') {
             const x = { ...phSet };
@@ -744,22 +744,19 @@ const containsEmptyValues = (data: any): boolean => {
 };
 */
 
-const containsEmptyValues = (data: bufferInitialType): boolean => {
+const containsEmptyValues = (data: bufferInitialType, _data: React.Dispatch<React.SetStateAction<typeof initial>>): boolean => {
     let status = false;
     for (const key of Object.keys(data)) {
         if (data[key as keyof bufferInitialType] === "") {
+            // console.log("Tripped in data: ", key);
             status = true;
             break;
         }
     }
     for (const key of Object.keys(data.attributes)) {
+        if (key === 'pH' || key === 'molarity') { continue; }
         if (data.attributes[key as keyof bufferAttributes] === "") {
-            status = true;
-            break;
-        }
-    }
-    for (const key of Object.keys(data.attributes.notes)) {
-        if (data.attributes.notes[key as keyof bufferNotesType] === "") {
+            // console.log("Tripped in attributes: ", key);
             status = true;
             break;
         }
@@ -767,6 +764,7 @@ const containsEmptyValues = (data: bufferInitialType): boolean => {
     for (let i = 0; i < data.components.length; i++) {
         for (const key of Object.keys(data.components[i])) {
             if (data.components[i][key as keyof bufferComponentType] === "") {
+                // console.log("Tripped in components: ", key);
                 status = true;
                 break;
             }
@@ -775,6 +773,7 @@ const containsEmptyValues = (data: bufferInitialType): boolean => {
     for (let i = 0; i < data.compounds.length; i++) {
         for (const key of Object.keys(data.compounds[i])) {
             if (data.compounds[i][key as keyof bufferCompoundType] === "") {
+                // console.log("Tripped in compounds: ", key);
                 status = true;
                 break;
             }
@@ -783,31 +782,77 @@ const containsEmptyValues = (data: bufferInitialType): boolean => {
     if (data.bufferType === 'variable' && data.attributes.variable_data) {
         for (const key of Object.keys(data.attributes.variable_data)) {
             if (data.attributes.variable_data[key as keyof bufferVariable_dataType] === "") {
+                // console.log("Tripped in attributes.variable_data: ", key);
                 status = true;
                 break;
             }
         }
     }
-    if (data.bufferType === 'variable' && data.attributes.phArr) {
-        for (let i = 0; i < data.attributes.phArr.length; i++) {
-            for (const key of Object.keys(data.attributes.phArr[i])) {
-                if (data.attributes.phArr[i][key as keyof bufferPhType] === "") {
-                    status = true;
-                    break;
+    if (data.bufferType === 'variable' && !data.attributes.variable_data?.og_denom) {
+        if (!data.attributes.phArr || data.attributes.phArr.length === 0) {
+            // console.log("Tripped in phArr not existing when og_denom doesn't exist");
+            status = true;
+        }
+        else {
+            for (let i = 0; i < data.attributes.phArr.length; i++) {
+                for (const key of Object.keys(data.attributes.phArr[i])) {
+                    if (data.attributes.phArr[i][key as keyof bufferPhType] === "") {
+                        // console.log("Tripped in data.attributes.phArr: ", key);
+                        status = true;
+                        break;
+                    }
                 }
             }
         }
     }
-    console.log("The status is:" + status);
+    if (data.attributes.variable_data?.og_denom && data.attributes.phArr) {
+        let blankCheck = true;
+        for (let i = 0; i < data.attributes.phArr.length; i++) {
+            for (const key of Object.keys(data.attributes.phArr[i])) {
+                if (data.attributes.phArr[i][key as keyof bufferPhType] !== "") {
+                    blankCheck = false;
+                }
+            }
+        }
+        if (blankCheck === true) {
+            _data((old) => {
+                old.attributes.phArr = [
+                    {
+                        amount: "",
+                        conjAmount: "",
+                        pH: ""
+                    }
+                ];
+                // console.log("phArr should be changed to blank: ", JSON.stringify(old.attributes.phArr, null, 4));
+                return {
+                    ...old,
+                    attributes: {
+                        ...old.attributes,
+                        phArr: [...old.attributes.phArr],
+                    }
+                };
+            });
+        }
+        else if (blankCheck === false) {
+            for (let i = 0; i < data.attributes.phArr.length; i++) {
+                for (const key of Object.keys(data.attributes.phArr[i])) {
+                    if (data.attributes.phArr[i][key as keyof bufferPhType] === "") {
+                        // console.log("Tripped in data.attributes.phArr: ", key);
+                        status = true;
+                        break;
+                    }
+                }
+            }
+        }
+    }
     return status;
 };
 
-const submitBuffer = (data: typeof initial): void => {
-    console.log(JSON.stringify(data, null, 4));
-    if (containsEmptyValues(data) === true || data.compounds.length === 0 || data.attributes.phArr && data.attributes.phArr.length === 0) { alert("Missing valid input in all fields"); }
-    else if (containsEmptyValues(data) === false) {
-        alert("Buffer was submitted to ajax call");
-        /*
+const submitBuffer = (data: typeof initial, _data: React.Dispatch<React.SetStateAction<typeof initial>>): void => {
+    // console.log("What is being submitted: ", JSON.stringify(data, null, 4));
+    if (containsEmptyValues(data, _data) === true || data.compounds.length === 0) { alert("Missing valid input in all fields"); }
+    else if (containsEmptyValues(data, _data) === false) {
+        // console.log("After containsEmptyValues check:", JSON.stringify(data, null, 4));
         //Ajax request sends component information stored in new_component variable to node
         const s = new Server<GenericObject, { fieldCount: number, affectedRows: number, insertId: number, info: string, serverStatus: number, warningStatus: number; }>();
         s.ajax({
@@ -822,7 +867,6 @@ const submitBuffer = (data: typeof initial): void => {
                 else { alert("There was an error sending the buffer data"); }
             }
         });
-        */
     }
 };
 
@@ -842,8 +886,8 @@ const AddRowButton = (props: { data: typeof initial, _data: React.Dispatch<React
     );
 };
 
-const SubmitButton = (props: { data: typeof initial; }): JSX.Element => {
-    const { data } = props;
+const SubmitButton = (props: { data: typeof initial, _data: React.Dispatch<React.SetStateAction<typeof initial>>; }): JSX.Element => {
+    const { data, _data } = props;
     return (
         <td><input
             type='button'
@@ -852,7 +896,7 @@ const SubmitButton = (props: { data: typeof initial; }): JSX.Element => {
                 alignContent: 'center',
                 width: '150px'
             }}
-            onClick={() => submitBuffer(data)}
+            onClick={() => submitBuffer(data, _data)}
         />
         </td>
     );
@@ -1007,7 +1051,7 @@ const handleBufferListClick = (ev: React.MouseEvent<HTMLElement>, _data: React.D
         dataType: 'application/json',
         success: (response) => {
             if (response.code === 200) {
-                //console.log("The db return is: " + JSON.stringify(response, null, 4));
+                // console.log("The db return is: ", JSON.stringify(response, null, 4));
                 if (!response.data[0].attributes.variable_data) {
                     _data((old) => {
                         old.bufferType = 'single';
@@ -1050,19 +1094,23 @@ const handleBufferListClick = (ev: React.MouseEvent<HTMLElement>, _data: React.D
                         old.attributes.notes = response.data[0].attributes.notes;
                         old.attributes.variable_data = response.data[0].attributes.variable_data;
                         old.compounds = response.data[0].compounds;
-                        if (response.data[0].attributes.phArr) {
+                        if (response.data[0].attributes.phArr && response.data[0].attributes.phArr.length !== 0) {
                             old.attributes.phArr = response.data[0].attributes.phArr;
                         }
                         else {
+                            // const initialphArr: bufferPhType[] = [];
+                            // const set = { ...phSet };
+                            // initialphArr.push(set);
+                            // old.attributes.phArr = initialphArr;
                             old.attributes.phArr = [
                                 {
-                                    amount: '',
-                                    conjAmount: '',
-                                    pH: ''
+                                    amount: "",
+                                    conjAmount: "",
+                                    pH: ""
                                 }
                             ];
                         }
-                        if (typeof old.attributes.phArr === "undefined") { return old; }
+                        //if (typeof old.attributes.phArr === "undefined") { return old; }
                         return {
                             ...old,
                             components: [...old.components],
@@ -1109,25 +1157,27 @@ const DisplayBufferList = (props: { index: number, title: string, id: string, fi
     );
 };
 
-const BufferDropdown = (props: { _data: React.Dispatch<React.SetStateAction<typeof initial>>, _dbData: React.Dispatch<React.SetStateAction<typeof initial>>, _display: React.Dispatch<React.SetStateAction<boolean>>; }): JSX.Element => {
-    const [databaseList, _databaseList] = useState([]);
+const BufferDropdown = (props: { _data: React.Dispatch<React.SetStateAction<typeof initial>>, _dbData: React.Dispatch<React.SetStateAction<typeof initial>>, _display: React.Dispatch<React.SetStateAction<boolean>>, bufferList: bufferListType[]; }): JSX.Element => {
+    const { _data, _dbData, _display, bufferList } = props;
+    const [databaseList] = useState<{ formula_id: string, title: string; }[]>(bufferList);
     const [filterTerm, _filterTerm] = useState<string>("");
-    const { _data, _dbData, _display } = props;
-    useEffect(() => {
-        const s = new Server();
-        s.ajax({
-            url: '/webcontent/buffer/get-buffer-list',
-            type: 'POST',
-            data: {},
-            dataType: 'application/json',
-            success: (response: any) => {
-                if (response.code === 200) {
-                    //console.log("The db dropwdown return is: " + JSON.stringify(response, null, 4));
-                    _databaseList(response.data);
-                }
-            }
-        });
-    }, []);
+    /*
+     useEffect(() => {
+         const s = new Server<GenericObject, { formula_id: string, title: string; }[]>();
+         s.ajax({
+             url: '/webcontent/buffer/get-buffer-list',
+             type: 'POST',
+             data: {},
+             dataType: 'application/json',
+             success: (response) => {
+                 if (response.code === 200) {
+                     //console.log("The db dropwdown return is: " + JSON.stringify(response, null, 4));
+                     _databaseList(response.data);
+                 }
+             }
+         });
+     }, []);
+     */
     return (
         <>
             <input
@@ -1147,7 +1197,7 @@ const BufferDropdown = (props: { _data: React.Dispatch<React.SetStateAction<type
                     height: '150px',
                     overflowY: 'auto'
                 }}>
-                {(databaseList) && databaseList.map((param: bufferInitialType, index: number) => {
+                {(databaseList) && databaseList.map((param: { formula_id: string, title: string; }, index: number) => {
                     return (
                         <>
                             <DisplayBufferList
@@ -1204,9 +1254,10 @@ const RenderPageContent = (props: {
     _display: React.Dispatch<React.SetStateAction<boolean>>,
     _data: React.Dispatch<React.SetStateAction<typeof initial>>,
     data: typeof initial,
-    _dbData: React.Dispatch<React.SetStateAction<typeof initial>>;
+    _dbData: React.Dispatch<React.SetStateAction<typeof initial>>,
+    bufferList: bufferListType[];
 }): JSX.Element => {
-    const { display, _display, _data, data, _dbData } = props;
+    const { display, _display, _data, data, _dbData, bufferList } = props;
     return (
         <>
             <input
@@ -1224,6 +1275,7 @@ const RenderPageContent = (props: {
                     _data={_data}
                     _dbData={_dbData}
                     _display={_display}
+                    bufferList={bufferList}
                 />
             </div>
             <br />
@@ -1259,11 +1311,10 @@ const RenderPageContent = (props: {
     );
 };
 
-const BufferPage = (): JSX.Element => {
+const BufferPage = (props: { bufferList: bufferListType[]; }): JSX.Element => {
     const [data, _data] = useState<bufferInitialType>(initial);
     const [dbData, _dbData] = useState<bufferInitialType>(initial);
     const [display, _display] = useState<boolean>(false);
-
     useEffect(() => {
         clearInputs(data.bufferType, _data);
     }, [data.bufferType]);
@@ -1289,7 +1340,7 @@ const BufferPage = (): JSX.Element => {
             });
         }
         else if (dbData.bufferType === 'variable') {
-            //console.log("The pull from database is " + JSON.stringify(dbData, null, 4));
+            // console.log("The pull from database is " + JSON.stringify(dbData, null, 4));
             _data((old) => {
                 old.title = dbData.title;
                 old.formula_id = dbData.formula_id;
@@ -1323,14 +1374,34 @@ const BufferPage = (): JSX.Element => {
                 _data={_data}
                 data={data}
                 _dbData={_dbData}
+                bufferList={props.bufferList}
             />
         </>
     );
 };
 
-export default BufferPage;
-
 export const getStaticProps = async (context: Routing.Context) => {
     const meta = await fetchMeta(__filename, context);
-    return ({ props: { meta: meta } });
+    const sql = "SELECT formula_id, title FROM www.formula_data WHERE type='buffer'";
+    interface RowType extends RowDataPacket { formula_id: string, title: string; }
+    let bufferList: Array<RowType> = [];
+    try {
+        const [db_rows] = await _db.query<Array<RowType>>(sql);
+        if (!db_rows) {
+            throw new Error('Error retrieving list of buffers');
+        }
+        bufferList = db_rows;
+    }
+    catch (e) {
+        console.error(e);
+    }
+
+    return ({
+        props: {
+            meta: meta,
+            bufferList: bufferList
+        }
+    });
 };
+
+export default BufferPage;

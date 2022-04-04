@@ -197,11 +197,11 @@ const Basic = (props: { _data: React.Dispatch<React.SetStateAction<typeof initia
 
     return (
         <>
-            {(display === true) ?
-                <div><TinyMCE
-                    _editor={_editor}
-                    save={save}
-                /> </div> : <></>}
+            <TinyMCE
+                _editor={_editor}
+                save={save}
+                id={"1"}
+            />
         </>
 
     );

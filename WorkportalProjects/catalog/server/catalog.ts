@@ -8,12 +8,14 @@ export const Catalog = express.Router();
 
 Catalog.post('/get-catalog-list', async (_req, res) => {
     const r = new Res(res);
-    interface RowType extends RowDataPacket, WorkPortalApp { };
+    interface RowType extends RowDataPacket, WorkPortalApp { }
     try {
         const sql = `SELECT title, catalog_id FROM www.catalog_data`;
         const [data_row] = await _db.query<Array<RowType>>(sql);
 
-        if (!data_row || data_row.length === 0) { throw 'Missing data'; }
+        if (!data_row || data_row.length === 0) {
+            throw new Error('Missing data');
+        }
         r.data = data_row;
         r.code = 200;
         r.json(); //send response back to use
@@ -21,7 +23,6 @@ Catalog.post('/get-catalog-list', async (_req, res) => {
         return;
     }
     catch (e) {
-        console.log(e);
         r.code = 500;
         return r.json();
     }
@@ -29,7 +30,7 @@ Catalog.post('/get-catalog-list', async (_req, res) => {
 
 Catalog.post('/submit-catalog', async (req, res) => {
     const r = new Res(res);
-    interface RowType extends RowDataPacket, WorkPortalApp { };
+    interface RowType extends RowDataPacket, WorkPortalApp { }
 
     try {
         let sql;
@@ -46,7 +47,9 @@ Catalog.post('/submit-catalog', async (req, res) => {
         const [data_row] = await _db.query<Array<RowType>>(sql, param);
         console.log("The final result after submit is: " + JSON.stringify(data_row, null, 4));
 
-        if (!data_row || data_row.length === 0) { throw 'Missing data'; }
+        if (!data_row || data_row.length === 0) {
+            throw new Error('Missing data');
+        }
 
         r.data = data_row;
         r.code = 200;
@@ -55,7 +58,6 @@ Catalog.post('/submit-catalog', async (req, res) => {
         return;
     }
     catch (e) {
-        console.log(e);
         r.code = 500;
         return r.json();
     }
@@ -63,7 +65,7 @@ Catalog.post('/submit-catalog', async (req, res) => {
 
 Catalog.post('/get-catalog-info', async (req, res) => {
     const r = new Res(res);
-    interface RowType extends RowDataPacket, WorkPortalApp { };
+    interface RowType extends RowDataPacket, WorkPortalApp { }
 
     try {
         const sql = "SELECT oID, main_content FROM www.catalog_data WHERE catalog_id = ?";
@@ -71,7 +73,9 @@ Catalog.post('/get-catalog-info', async (req, res) => {
 
         console.log("Test of db pull, data_row is: " + JSON.stringify(data_row, null, 4));
 
-        if (!data_row || data_row.length === 0) { throw 'Missing data'; }
+        if (!data_row || data_row.length === 0) {
+            throw new Error('Missing data');
+        }
         r.data = data_row;
         r.code = 200;
         r.json(); //send response back to use
@@ -79,13 +83,11 @@ Catalog.post('/get-catalog-info', async (req, res) => {
         return;
     }
     catch (e) {
-        console.log(e);
         r.code = 500;
         return r.json();
     }
 });
 /*
-//@ts-ignore
 Catalog.post('/new-entry', async (req, res) => {
     const r = new Res(res);
     interface RowType extends RowDataPacket, WorkPortalApp { };
