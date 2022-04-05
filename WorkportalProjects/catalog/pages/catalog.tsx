@@ -1,12 +1,13 @@
 import { Editor } from '@tinymce/tinymce-react';
-import React, { Dispatch, MutableRefObject, SetStateAction, useEffect, useRef, useState } from 'react';
+import { RowDataPacket } from 'mysql2';
+import React, { ChangeEvent, MutableRefObject, useEffect, useRef, useState } from 'react';
 import TinyMCE from '../../components/tinymce/Editor';
 import { fetchMeta } from '../../lib/meta';
 import Server from '../../lib/server';
-import { catalogInitialType } from '../../types/pages/webcontent/Catalog';
+import { _db } from '../../server/lib/sql';
+import { GenericObject } from '../../types/Common';
+import { catalogInitialType, catalogListType } from '../../types/pages/webcontent/Catalog';
 import { Routing } from '../../types/Routing';
-
-const s = new Server();
 
 const initial: catalogInitialType = {
     catalog_id: "",
@@ -14,7 +15,7 @@ const initial: catalogInitialType = {
     main_content: ""
 };
 
-const clearInputs = (_data: React.Dispatch<React.SetStateAction<typeof initial>>) => {
+const clearInputs = (_data: React.Dispatch<React.SetStateAction<typeof initial>>): void => {
     const initialObj: catalogInitialType = {
         catalog_id: "",
         title: "",
@@ -27,9 +28,9 @@ const clearInputs = (_data: React.Dispatch<React.SetStateAction<typeof initial>>
     });
 };
 
-const handleInput = (ev: any, _data: React.Dispatch<React.SetStateAction<typeof initial>>) => {
+const handleInput = (ev: ChangeEvent<HTMLInputElement>, _data: React.Dispatch<React.SetStateAction<catalogInitialType>>): void => {
     const inputValue = ev.target.value;
-    const inputID = ev.target.id;
+    const inputID = ev.target.id as keyof typeof initial;
     const sanTitle = inputValue.toLowerCase()
         .replace(/[^a-z0-9]/gu, '-')
         .replace(/(?:-){2,}/gu, '-')
@@ -43,18 +44,25 @@ const handleInput = (ev: any, _data: React.Dispatch<React.SetStateAction<typeof 
     });
 };
 
-const handleCatalogListClick = (ev: any, _data: React.Dispatch<React.SetStateAction<typeof initial>>, _display: React.Dispatch<React.SetStateAction<boolean>>) => {
-    const title = ev.target.getAttribute('data-title');
-    const id = ev.target.getAttribute('data-id');
+/**
+ * Function which handles selection of catalog from the catalog dropdown list. Pulls data from server for selected title and sets values into data.
+ * Also sets display to true which shows the rest of the form.
+ * @param ev 
+ * @param _data 
+ * @param _display 
+ */
+const handleCatalogListClick = (ev: React.MouseEvent<HTMLElement>, _data: React.Dispatch<React.SetStateAction<typeof initial>>, _display: React.Dispatch<React.SetStateAction<boolean>>): void => {
+    const title = ev.currentTarget.getAttribute('data-title') as string;
+    const id = ev.currentTarget.getAttribute('data-id') as string;
     _display(true);
+    const s = new Server<GenericObject, { oID: number, main_content: string; }[]>();
     s.ajax({
-        url: '/api/webcontent/catalog/get-catalog-info',
+        url: '/webcontent/catalog/get-catalog-info',
         type: 'POST',
         data: { id },
         dataType: 'application/json',
-        success: (response: any) => {
+        success: (response) => {
             if (response.code === 200) {
-                console.log("Reponse data is: " + JSON.stringify(response.data, null, 4));
                 _data((old) => {
                     old.oID = response.data[0].oID;
                     old.title = title;
@@ -67,16 +75,22 @@ const handleCatalogListClick = (ev: any, _data: React.Dispatch<React.SetStateAct
     });
 };
 
-const submitCatalog = (data: typeof initial, _data: React.Dispatch<React.SetStateAction<typeof initial>>) => {
-    console.log("The submitting data is: " + JSON.stringify(data, null, 4));
+/**
+ * Function which sends the catalog data to the database. If oID exists, performs an update. If oID does not exist performs an insert ignore. This allows for title editing without creating an unintended new catalog. Saves insertId to oID from the response if insertion occurs.
+ * @param data 
+ * @param _data 
+ */
+const submitCatalog = (data: typeof initial, _data: React.Dispatch<React.SetStateAction<typeof initial>>): void => {
     if (data.title === '' || data.main_content === '') { alert("Missing valid input in all fields"); }
     else if (data.title !== '' && data.main_content !== '') {
+        const s = new Server<GenericObject, RowDataPacket
+        >();
         s.ajax({
-            url: '/api/webcontent/catalog/submit-catalog',
+            url: '/webcontent/catalog/submit-catalog',
             type: 'POST',
             data: data,
             dataType: 'application/json',
-            success: (response: any) => {
+            success: (response) => {
                 if (response.data.insertId !== 0) {
                     alert("The catalog data has been added to the server");
                     _data((old) => {
@@ -91,9 +105,9 @@ const submitCatalog = (data: typeof initial, _data: React.Dispatch<React.SetStat
     }
 };
 
-const DisplayCatalogList = (props: { index: number, title: string, id: string, filterTerm: any, _display: React.Dispatch<React.SetStateAction<boolean>>, _data: React.Dispatch<React.SetStateAction<typeof initial>>; }) => {
+const DisplayCatalogList = (props: { index: number, title: string, id: string, filterTerm: string, _display: React.Dispatch<React.SetStateAction<boolean>>, _data: React.Dispatch<React.SetStateAction<typeof initial>>; }): JSX.Element => {
     const { index, title, id, filterTerm, _display, _data } = props;
-    //Filter which returns blank if there is no matches to the entered filterTerm.
+    //Filter which returns blank if there are no matches to the entered filterTerm.
     if (filterTerm && title.toLowerCase().indexOf(filterTerm.toLowerCase()) === -1) {
         return (
             <>
@@ -112,38 +126,23 @@ const DisplayCatalogList = (props: { index: number, title: string, id: string, f
                 boxSizing: 'border-box',
                 cursor: 'pointer'
             }}
-            onClick={(ev: any) => { handleCatalogListClick(ev, _data, _display); }}
+            onClick={(ev: React.MouseEvent<HTMLElement>) => { handleCatalogListClick(ev, _data, _display); }}
         >
             {title}
         </div>
     );
 };
 
-const CatalogDropdown = (props: { _display: React.Dispatch<React.SetStateAction<boolean>>, _data: React.Dispatch<React.SetStateAction<typeof initial>>; }) => {
-    const [databaseList, _databaseList] = useState<any>();
-    const [filterTerm, _filterTerm] = useState<string>();
-    const { _display, _data } = props;
-    //TODO: Convert to a get static props situation
-    useEffect(() => {
-        s.ajax({
-            url: '/webcontent/catalog/get-catalog-list',
-            type: 'POST',
-            data: {},
-            dataType: 'application/json',
-            success: (response: any) => {
-                if (response.code === 200) {
-                    console.log("Test of response: " + JSON.stringify(response.data, null, 4));
-                    _databaseList(response.data);
-                }
-            }
-        });
-    }, []);
+const CatalogDropdown = (props: { _display: React.Dispatch<React.SetStateAction<boolean>>, _data: React.Dispatch<React.SetStateAction<typeof initial>>, catalogList: catalogListType[]; }): JSX.Element => {
+    const { _display, _data, catalogList } = props;
+    const [databaseList] = useState<catalogListType[]>(catalogList);
+    const [filterTerm, _filterTerm] = useState<string>("");
     return (
         <>
             <input
                 value={filterTerm}
                 type='text'
-                onChange={(ev: any) => { _filterTerm(ev.target.value); }}
+                onChange={(ev: ChangeEvent<HTMLInputElement>) => { _filterTerm(ev.target.value); }}
                 placeholder='Filter catalogs...'
                 style={{
                     display: 'block',
@@ -157,7 +156,7 @@ const CatalogDropdown = (props: { _display: React.Dispatch<React.SetStateAction<
                     height: '150px',
                     overflowY: 'auto'
                 }}>
-                {(databaseList) && databaseList.map((param: any, index: number) => {
+                {(databaseList) && databaseList.map((param: { title: string, catalog_id: string; }, index: number) => {
                     return (
                         <>
                             <DisplayCatalogList
@@ -176,8 +175,14 @@ const CatalogDropdown = (props: { _display: React.Dispatch<React.SetStateAction<
     );
 };
 
-const Basic = (props: { _data: React.Dispatch<React.SetStateAction<typeof initial>>, data: typeof initial, editor: MutableRefObject<Editor['editor'] | null>, _editor: Dispatch<SetStateAction<MutableRefObject<Editor['editor'] | null>>>, display: boolean; }) => {
-    const { _data, data, editor, _editor, display } = props;
+/**
+ * TinyMCE editor component
+ * @param props _data, data
+ * @returns 
+ */
+const Basic = (props: { _data: React.Dispatch<React.SetStateAction<typeof initial>>, data: typeof initial; }): JSX.Element => {
+    const { _data, data } = props;
+    const [editor, _editor] = useState<MutableRefObject<Editor['editor'] | null>>(useRef(null));
 
     const save = (input: string) => {
         _data((old) => {
@@ -193,7 +198,7 @@ const Basic = (props: { _data: React.Dispatch<React.SetStateAction<typeof initia
         else if (data.main_content === "") {
             editor.current?.setContent("");
         }
-    }, [data]);
+    }, [data, editor]);
 
     return (
         <>
@@ -212,10 +217,9 @@ const RenderPageContent = (props: {
     _display: React.Dispatch<React.SetStateAction<boolean>>,
     _data: React.Dispatch<React.SetStateAction<typeof initial>>,
     data: typeof initial,
-    editor: MutableRefObject<Editor['editor'] | null>,
-    _editor: Dispatch<SetStateAction<MutableRefObject<Editor['editor'] | null>>>;
-}) => {
-    const { display, _display, _data, data, editor, _editor } = props;
+    catalogList: catalogListType[];
+}): JSX.Element => {
+    const { display, _display, _data, data, catalogList } = props;
     return (
         <>
             <input
@@ -230,6 +234,7 @@ const RenderPageContent = (props: {
                 <CatalogDropdown
                     _display={_display}
                     _data={_data}
+                    catalogList={catalogList}
                 />
             </div>
             <br />
@@ -248,7 +253,7 @@ const RenderPageContent = (props: {
                                     id='title'
                                     value={data.title}
                                     placeholder="Enter catalog title..."
-                                    onChange={(ev: any) => { handleInput(ev, _data); }}
+                                    onChange={(ev: ChangeEvent<HTMLInputElement>) => { handleInput(ev, _data); }}
                                 /></td>
                             </tr>
                         </tbody>
@@ -257,9 +262,7 @@ const RenderPageContent = (props: {
                     <Basic
                         _data={_data}
                         data={data}
-                        editor={editor}
-                        _editor={_editor}
-                        display={display} />
+                    />
                     <br />
                     <input
                         className='action_button'
@@ -274,10 +277,9 @@ const RenderPageContent = (props: {
     );
 };
 
-const CatalogPage = () => {
-    const [data, _data] = useState<typeof initial>(initial);
+const CatalogPage = (props: { catalogList: catalogListType[]; }): JSX.Element => {
+    const [data, _data] = useState<catalogInitialType>(initial);
     const [display, _display] = useState<boolean>(false);
-    const [editor, _editor] = useState<MutableRefObject<Editor['editor'] | null>>(useRef(null));
 
     return (
         <>
@@ -286,8 +288,7 @@ const CatalogPage = () => {
                 _display={_display}
                 _data={_data}
                 data={data}
-                editor={editor}
-                _editor={_editor}
+                catalogList={props.catalogList}
             />
         </>
     );
@@ -297,5 +298,23 @@ export default CatalogPage;
 
 export const getStaticProps = async (context: Routing.Context) => {
     const meta = await fetchMeta(__filename, context);
-    return ({ props: { meta: meta } });
+    const sql = `SELECT title, catalog_id FROM www.catalog_data`;
+    interface RowType extends RowDataPacket { title: string, catalog_id: string; }
+    let catalogList: Array<RowType> = [];
+    try {
+        const [db_rows] = await _db.query<Array<RowType>>(sql);
+        if (!db_rows) {
+            throw new Error('Error retrieving list of catalogs');
+        }
+        catalogList = db_rows;
+    }
+    catch (e) {
+        console.error(e);
+    }
+    return ({
+        props: {
+            meta: meta,
+            catalogList: catalogList
+        }
+    });
 };
